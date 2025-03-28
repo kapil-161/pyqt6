@@ -5,17 +5,18 @@ Replaces Dash/Plotly with PyQtGraph for time series plotting
 import os
 import sys
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict,  Any
 
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QComboBox, QHBoxLayout, 
-    QGraphicsRectItem, QFrame, QSizePolicy
+from PyQt6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel,  QHBoxLayout, 
+     QFrame, QSizePolicy,
+    QScrollArea
 )
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QRectF
-from PyQt5.QtGui import QBrush, QPen, QColor
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, QRectF
+from PyQt6.QtGui import QBrush, QPen, QColor
 
 # Add project root to path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -46,6 +47,10 @@ class PlotWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Set size policy for proper resizing
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        # Initialize
         self.setup_ui()
         
         # Store data
@@ -58,22 +63,23 @@ class PlotWidget(QWidget):
         self.line_styles = config.LINE_STYLES
         self.marker_symbols = config.MARKER_SYMBOLS
         
-    # Modify the setup_ui method in PlotWidget class
-
     def setup_ui(self):
         """Setup the UI components"""
         # Main layout - horizontal layout with plot and legend
         main_layout = QHBoxLayout()
+        main_layout.setContentsMargins(5, 5, 5, 5)  # Add some padding
         self.setLayout(main_layout)
         
         # Left side - plot and scaling container
         left_container = QWidget()
+        left_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         left_layout = QVBoxLayout()
         left_container.setLayout(left_layout)
         left_layout.setContentsMargins(0, 0, 0, 0)
         
         # Plot widget
         self.plot_view = pg.PlotWidget()
+        self.plot_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.plot_view.setBackground('w')  # White background
         self.plot_view.showGrid(x=True, y=True, alpha=0.3)
         
@@ -85,8 +91,8 @@ class PlotWidget(QWidget):
         
         # Create separated scaling panel at the bottom with clear visual distinction
         scaling_frame = QFrame()
-        scaling_frame.setFrameShape(QFrame.StyledPanel)
-        scaling_frame.setFrameShadow(QFrame.Raised)
+        scaling_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        scaling_frame.setFrameShadow(QFrame.Shadow.Raised)
         scaling_frame.setStyleSheet("background-color: #f8f8f8; border: 1px solid #ddd;")
         
         scaling_layout = QVBoxLayout()
@@ -100,32 +106,29 @@ class PlotWidget(QWidget):
         
         # Actual scaling factors text
         self.scaling_label = QLabel()
-        self.scaling_label.setAlignment(Qt.AlignLeft)
-        self.scaling_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.scaling_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.scaling_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         scaling_layout.addWidget(self.scaling_label)
         
         # Set a fixed height for the scaling panel
         scaling_frame.setMinimumHeight(60)
         # Let it grow with content but don't let it get too large
         scaling_frame.setMaximumHeight(200)
-        scaling_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        scaling_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         
         # Add scaling panel to left layout
         left_layout.addWidget(scaling_frame)
         
-        # Add left container to main layout (70% of space)
+        # Add left container to main layout (80% of space)
         main_layout.addWidget(left_container, 80)
         
         # Right side - legend container
-        # Create a scroll area for the legend
-        from PyQt5.QtWidgets import QScrollArea
-        
         # Create a scroll area
         legend_scroll_area = QScrollArea()
         legend_scroll_area.setWidgetResizable(True)
-        legend_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        legend_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        legend_scroll_area.setFrameShape(QFrame.NoFrame)
+        legend_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        legend_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        legend_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
         
         # Create the legend container as the content of the scroll area
         self.legend_container = QWidget()
@@ -141,6 +144,20 @@ class PlotWidget(QWidget):
         # Set initial size for legend scroll area
         legend_scroll_area.setMinimumWidth(180)
         legend_scroll_area.setMaximumWidth(220)
+        
+        # Enable auto-range on resize
+        self.plot_view.enableAutoRange()
+        
+        # Connect resize event
+        self.resizeEvent = self.on_resize
+        
+    def on_resize(self, event):
+        # Update plots when resized
+        if hasattr(self, 'plot_view'):
+            self.plot_view.updateGeometry()
+            # If you have data loaded, re-autoscale
+            if self.sim_data is not None:
+                self.plot_view.autoRange()
     
     def plot_time_series(self, 
                         selected_folder: str, 
@@ -335,7 +352,7 @@ class PlotWidget(QWidget):
         
         # Create custom Qt legend in the legend container widget
         legend_label = QLabel("<b>Legend</b>")
-        legend_label.setAlignment(Qt.AlignCenter)
+        legend_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.legend_layout.addWidget(legend_label)
         
         # Storage for our legend entries
@@ -345,7 +362,7 @@ class PlotWidget(QWidget):
         }
         
         # Plot the data and collect items for legend
-        line_styles = [Qt.SolidLine, Qt.DashLine, Qt.DotLine, Qt.DashDotLine]
+        line_styles = [Qt.PenStyle.SolidLine, Qt.PenStyle.DashLine, Qt.PenStyle.DotLine, Qt.PenStyle.DashDotLine]
         pen_width = 2
         
         # For each treatment and variable, add a line/points

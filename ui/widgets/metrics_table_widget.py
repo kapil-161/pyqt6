@@ -9,13 +9,13 @@ from typing import List, Dict, Any
 
 import pandas as pd
 import numpy as np
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableView, QHeaderView,
-    QPushButton, QHBoxLayout, QFileDialog, QLabel,
+    QPushButton,  QFileDialog, QLabel,
     QDialog, QDialogButtonBox
 )
-from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QFont, QColor
+from PyQt6.QtCore import Qt, QAbstractTableModel,  pyqtSlot
+from PyQt6.QtGui import QFont, QColor
 
 # Add project root to path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -47,7 +47,7 @@ class MetricsTableModel(QAbstractTableModel):
     def columnCount(self, parent=None):
         return len(self._headers)
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or index.row() >= len(self._data):
             return None
             
@@ -60,7 +60,7 @@ class MetricsTableModel(QAbstractTableModel):
                 value = self._data[index.row()][key]
                 break
                 
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             if value is None:
                 return "NA"
             elif isinstance(value, float):
@@ -69,19 +69,19 @@ class MetricsTableModel(QAbstractTableModel):
             else:
                 return str(value)
                 
-        elif role == Qt.TextAlignmentRole:
+        elif role == Qt.ItemDataRole.TextAlignmentRole:
             if col_name == "Variable":
-                return Qt.AlignLeft | Qt.AlignVCenter
+                return int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             else:
-                return Qt.AlignRight | Qt.AlignVCenter
+                return int(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
                 
-        elif role == Qt.FontRole:
+        elif role == Qt.ItemDataRole.FontRole:
             if col_name == "Variable":
                 font = QFont()
                 font.setBold(True)
                 return font
                 
-        elif role == Qt.BackgroundRole:
+        elif role == Qt.ItemDataRole.BackgroundRole:
             # Add coloring for good/bad metric values
             if col_name == "R²" and isinstance(value, float):
                 if value > 0.8:
@@ -96,8 +96,8 @@ class MetricsTableModel(QAbstractTableModel):
                     
         return None
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole and orientation == Qt.Horizontal:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole and orientation == Qt.Orientation.Horizontal:
             return self._headers[section]
         return None
     
@@ -118,7 +118,7 @@ class MetricsTableModel(QAbstractTableModel):
             self._data = sorted(
                 self._data,
                 key=lambda x: (key_to_sort not in x, x.get(key_to_sort, 0)),
-                reverse=(order != Qt.AscendingOrder)
+                reverse=(order != Qt.SortOrder.AscendingOrder)
             )
             
         self.layoutChanged.emit()
@@ -159,7 +159,7 @@ class MetricsTableWidget(QWidget):
         self.table_view.setSortingEnabled(True)
         self.table_view.setAlternatingRowColors(True)
         # Change from Stretch to Interactive - will be set properly in set_metrics
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table_view.verticalHeader().setVisible(False)
         layout.addWidget(self.table_view)
         
@@ -189,7 +189,7 @@ class MetricsTableWidget(QWidget):
         self.table_view.setModel(model)
         
         # First, set to ResizeToContents to get width based on content
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         
         # Let the view calculate sizes
         self.table_view.horizontalHeader().setStretchLastSection(False)
@@ -202,7 +202,7 @@ class MetricsTableWidget(QWidget):
             widths[0] = max(widths[0], 250)  # Minimum width for Variable column
         
         # Set fixed width mode so we can set the widths manually
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Fixed)
+        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
         
         # Apply the widths
         for i, width in enumerate(widths):
@@ -270,7 +270,7 @@ class MetricsDialog(QDialog):
             self.resize(max(table_width, 600), self.height())
         
         # Add dialog buttons
-        buttons = QDialogButtonBox(QDialogButtonBox.Close)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
     

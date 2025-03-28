@@ -5,12 +5,11 @@ Provides status messages and notifications
 import os
 import sys
 import logging
-from typing import Optional
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QLabel, QProgressBar
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import  QTimer,  pyqtSlot
 
 # Configure logging
 logger = logging.getLogger(__name__)

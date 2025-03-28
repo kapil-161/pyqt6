@@ -5,15 +5,16 @@ import logging
 import time
 from typing import List, Dict, Optional, Any
 
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QLabel, QComboBox, QPushButton, QGroupBox,
-    QMessageBox, QStatusBar, QFrame, QListWidget, QCheckBox,
-    QTableView, QHeaderView, QApplication, QAction, QMenu,
+    QMessageBox,  QListWidget, QCheckBox,
+     QApplication, 
     QListWidgetItem, QProgressBar, QScrollArea, QSizePolicy
 )
-from PyQt5.QtCore import Qt, QTimer, QModelIndex, pyqtSignal, pyqtSlot, QEventLoop
-from PyQt5.QtGui import QIcon, QStandardItemModel, QStandardItem
+from PyQt6.QtCore import Qt, QTimer,  pyqtSignal, pyqtSlot
+
+
 
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_dir)
@@ -52,9 +53,21 @@ class MainWindow(QMainWindow):
         self._data_needs_refresh = False
         self.setWindowTitle("DSSAT Viewer")
         self.setMinimumSize(1200, 800)
+
+        # Make window resizable
+        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
         self.status_widget = StatusWidget()
         self.statusBar().addPermanentWidget(self.status_widget, 1)
         self.setup_ui()
+        
+        # Allow child widgets to expand with the window
+        self.central_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        # Ensure content_area can expand
+        self.content_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
         self.setup_loading_indicator()
         self.connect_signals()
         self.initialize_data()
@@ -86,32 +99,111 @@ class MainWindow(QMainWindow):
             self.scatter_plot.end_update = end_update.__get__(self.scatter_plot)
     
     def setup_ui(self):
+        # Set application-wide style with lighter colors
+        self.setStyleSheet("""
+            * { color: #000000; }  /* Make all text black */
+            
+            QMainWindow, QWidget {
+                background-color: #F0F5F9;  /* Light blue-gray background */
+            }
+            QTabWidget::pane {
+                border: 1px solid #E4E8ED;
+                background-color: #F0F5F9;
+            }
+            QTabWidget::tab-bar {
+                left: 5px;
+            }
+            QTabBar::tab {
+                background-color: #E4E8ED;
+                border: 1px solid #C9D6DF;
+                padding: 6px 12px;
+                margin-right: 2px;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+            }
+            QTabBar::tab:selected {
+                background-color: #F0F5F9;
+                border-bottom-color: white;
+            }
+            QComboBox, QListWidget {
+                background-color: #F0F5F9;
+                border: 1px solid #C9D6DF;
+                border-radius: 3px;
+                padding: 2px;
+                selection-background-color: #A8D8F0;
+            }
+            QGroupBox {
+                background-color: #F0F5F9;
+                border: 1px solid #C9D6DF;
+                border-radius: 5px;
+                margin-top: 10px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 5px 0 5px;
+                background-color: #F0F5F9;
+            }
+            QTableView {
+                background-color: #F0F5F9;
+                alternate-background-color: #F9FBFC;
+                border: 1px solid #C9D6DF;
+            }
+            QScrollArea {
+                background-color: transparent;
+            }
+            QPushButton {
+                background-color: #52A7E0;  /* Sky blue */
+                border: none;
+                border-radius: 4px;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #3D8BC7;
+            }
+            QPushButton:disabled {
+                background-color: #C9D6DF;
+            }
+        """)
+        
+        # Rest of your code remains unchanged...
+        
         self.central_widget = QWidget()
+        self.central_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setCentralWidget(self.central_widget)
+        
         main_layout = QHBoxLayout()
         self.central_widget.setLayout(main_layout)
-        self.splitter = QSplitter(Qt.Horizontal)
+        
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
         main_layout.addWidget(self.splitter)
+        
         sidebar_container = QWidget()
         sidebar_container_layout = QVBoxLayout()
         sidebar_container_layout.setContentsMargins(0, 0, 0, 0)
         sidebar_container.setLayout(sidebar_container_layout)
+        
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         sidebar_container_layout.addWidget(scroll_area)
+        
         self.sidebar = QWidget()
         sidebar_layout = QVBoxLayout()
         self.sidebar.setLayout(sidebar_layout)
         sidebar_layout.setContentsMargins(10, 10, 10, 10)
         scroll_area.setWidget(self.sidebar)
+        
         sidebar_container.setMinimumWidth(220)
         sidebar_container.setMaximumWidth(320)
+        
         self.splitter.addWidget(sidebar_container)
         self.splitter.setSizes([270, 930])
         self.splitter.setHandleWidth(5)
         self.splitter.setStyleSheet("QSplitter::handle { background-color: #cccccc; }")
+        
         self.setup_folder_selection(sidebar_layout)
         self.setup_experiment_selection(sidebar_layout)
         self.setup_treatment_selection(sidebar_layout)
@@ -119,24 +211,34 @@ class MainWindow(QMainWindow):
         self.setup_visualization_controls(sidebar_layout)
         self.setup_metrics_button(sidebar_layout)
         sidebar_layout.addStretch(1)
+        
         self.content_area = QTabWidget()
+        self.content_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.content_area.setDocumentMode(True)
         self.splitter.addWidget(self.content_area)
+        
+        # Set the stretch factors for the splitter
+        self.splitter.setStretchFactor(0, 1)  # Sidebar
+        self.splitter.setStretchFactor(1, 3)  # Content area
+        
         self.time_series_tab = QWidget()
         time_series_layout = QVBoxLayout()
         self.time_series_tab.setLayout(time_series_layout)
         self.time_series_plot = PlotWidget()
         time_series_layout.addWidget(self.time_series_plot)
+        
         self.scatter_tab = QWidget()
         scatter_layout = QVBoxLayout()
         self.scatter_tab.setLayout(scatter_layout)
         self.scatter_plot = ScatterPlotWidget()
         scatter_layout.addWidget(self.scatter_plot)
+        
         self.data_tab = QWidget()
         data_layout = QVBoxLayout()
         self.data_tab.setLayout(data_layout)
         self.data_table = DataTableWidget()
         data_layout.addWidget(self.data_table)
+        
         self.content_area.addTab(self.time_series_tab, "Time Series")
         self.content_area.addTab(self.scatter_tab, "Scatter Plot")
         self.content_area.addTab(self.data_tab, "Data View")
@@ -150,7 +252,7 @@ class MainWindow(QMainWindow):
         self.loading_progress.setRange(0, 0)
         layout.addWidget(self.loading_progress)
         self.loading_label = QLabel("Loading tab content...")
-        self.loading_label.setAlignment(Qt.AlignCenter)
+        self.loading_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.loading_label)
         self.loading_indicator.setStyleSheet("""
             background-color: rgba(255, 255, 255, 220);
@@ -201,7 +303,7 @@ class MainWindow(QMainWindow):
         group_layout = QVBoxLayout()
         group.setLayout(group_layout)
         self.treatment_list = QListWidget()
-        self.treatment_list.setSelectionMode(QListWidget.MultiSelection)
+        self.treatment_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.treatment_list.setToolTip("Select one or more treatments")
         self.treatment_list.setMinimumHeight(70)
         self.treatment_list.setMaximumHeight(90)
@@ -223,7 +325,7 @@ class MainWindow(QMainWindow):
         file_layout = QVBoxLayout()
         file_group.setLayout(file_layout)
         self.out_file_selector = QListWidget()
-        self.out_file_selector.setSelectionMode(QListWidget.MultiSelection)
+        self.out_file_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.out_file_selector.setMinimumHeight(60)
         self.out_file_selector.setMaximumHeight(80)
         file_layout.addWidget(self.out_file_selector)
@@ -236,7 +338,7 @@ class MainWindow(QMainWindow):
         ts_layout.addWidget(self.x_var_selector)
         ts_layout.addWidget(QLabel("Y Variables"))
         self.y_var_selector = QListWidget()
-        self.y_var_selector.setSelectionMode(QListWidget.MultiSelection)
+        self.y_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.y_var_selector.setMinimumHeight(120)
         ts_layout.addWidget(self.y_var_selector)
         layout.addWidget(self.time_series_group)
@@ -250,7 +352,7 @@ class MainWindow(QMainWindow):
         scatter_layout.addWidget(self.custom_xy_radio)
         scatter_layout.addWidget(QLabel("Variables to Compare"))
         self.scatter_var_selector = QListWidget()
-        self.scatter_var_selector.setSelectionMode(QListWidget.MultiSelection)
+        self.scatter_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.scatter_var_selector.setMinimumHeight(120)
         scatter_layout.addWidget(self.scatter_var_selector)
         scatter_layout.addWidget(QLabel("X Variable"))
@@ -258,7 +360,7 @@ class MainWindow(QMainWindow):
         scatter_layout.addWidget(self.scatter_x_var_selector)
         scatter_layout.addWidget(QLabel("Y Variables"))
         self.scatter_y_var_selector = QListWidget()
-        self.scatter_y_var_selector.setSelectionMode(QListWidget.MultiSelection)
+        self.scatter_y_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.scatter_y_var_selector.setMinimumHeight(120)
         scatter_layout.addWidget(self.scatter_y_var_selector)
         layout.addWidget(self.scatter_group)
@@ -366,7 +468,7 @@ class MainWindow(QMainWindow):
                 for _, row in treatments.iterrows():
                     self.treatment_names[row.TR] = row.TNAME
                     item = QListWidgetItem(f"{row.TR} - {row.TNAME}")
-                    item.setData(Qt.UserRole, row.TR)
+                    item.setData(Qt.ItemDataRole.UserRole, row.TR)
                     self.treatment_list.addItem(item)
                 for i in range(self.treatment_list.count()):
                     self.treatment_list.item(i).setSelected(True)
@@ -432,11 +534,11 @@ class MainWindow(QMainWindow):
                 var_label, _ = get_variable_info(col)
                 display_text = f"{var_label} ({col})" if var_label else col
                 item = QListWidgetItem(display_text)
-                item.setData(Qt.UserRole, col)
+                item.setData(Qt.ItemDataRole.UserRole, col)
                 self.y_var_selector.addItem(item)
             if "CWAD" in all_columns:
                 for i in range(self.y_var_selector.count()):
-                    if self.y_var_selector.item(i).data(Qt.UserRole) == "CWAD":
+                    if self.y_var_selector.item(i).data(Qt.ItemDataRole.UserRole) == "CWAD":
                         self.y_var_selector.item(i).setSelected(True)
                         break
             elif all_columns:
@@ -479,7 +581,7 @@ class MainWindow(QMainWindow):
             self.scatter_var_selector.clear()
             for display_name, sim_var, meas_var in var_pairs:
                 item = QListWidgetItem(display_name)
-                item.setData(Qt.UserRole, (display_name, sim_var, meas_var))
+                item.setData(Qt.ItemDataRole.UserRole, (display_name, sim_var, meas_var))
                 self.scatter_var_selector.addItem(item)
                 logging.info(f"Added auto-pair: {display_name} ({sim_var} vs {meas_var})")
             if self.scatter_var_selector.count() > 0:
@@ -493,7 +595,7 @@ class MainWindow(QMainWindow):
             self.scatter_y_var_selector.clear()
             for display_name, var_name in all_vars:
                 item = QListWidgetItem(display_name)
-                item.setData(Qt.UserRole, var_name)
+                item.setData(Qt.ItemDataRole.UserRole, var_name)
                 self.scatter_y_var_selector.addItem(item)
             if self.scatter_y_var_selector.count() > 0:
                 self.scatter_y_var_selector.item(0).setSelected(True)
@@ -507,7 +609,7 @@ class MainWindow(QMainWindow):
         default_vars = ["LAI", "GSAT", "HWAH"]
         for var in default_vars:
             item = QListWidgetItem(var)
-            item.setData(Qt.UserRole, (var, f"{var}S", f"{var}M"))
+            item.setData(Qt.ItemDataRole.UserRole, (var, f"{var}S", f"{var}M"))
             self.scatter_var_selector.addItem(item)
         if self.scatter_var_selector.count() > 0:
             self.scatter_var_selector.item(0).setSelected(True)
@@ -516,7 +618,7 @@ class MainWindow(QMainWindow):
         for var in default_vars:
             self.scatter_x_var_selector.addItem(var, userData=var)
             item = QListWidgetItem(var)
-            item.setData(Qt.UserRole, var)
+            item.setData(Qt.ItemDataRole.UserRole, var)
             self.scatter_y_var_selector.addItem(item)
         if self.scatter_y_var_selector.count() > 0:
             self.scatter_y_var_selector.item(0).setSelected(True)
@@ -572,7 +674,7 @@ class MainWindow(QMainWindow):
         try:
             self.status_widget.show_running("Running treatment...")
             self.run_button.setEnabled(False)
-            from PyQt5.QtCore import QThread
+            from PyQt6.QtCore import QThread
             class WorkerThread(QThread):
                 result_signal = pyqtSignal(bool, str)
                 def __init__(self, parent, input_data, dssat_base):
@@ -748,7 +850,7 @@ class MainWindow(QMainWindow):
             self.status_widget.show_warning("No metrics data available for current view")
             return
         dialog = MetricsDialog(self.current_metrics, self)
-        dialog.exec_()
+        dialog.exec()  # Note: In PyQt6, exec() doesn't have parentheses
     
     def update_time_series_plot(self):
         try:
@@ -762,7 +864,7 @@ class MainWindow(QMainWindow):
                 x_var = self.x_var_selector.currentText()
             y_vars = []
             for item in self.y_var_selector.selectedItems():
-                var_code = item.data(Qt.UserRole)
+                var_code = item.data(Qt.ItemDataRole.UserRole)
                 if var_code:
                     y_vars.append(var_code)
                 else:
@@ -794,7 +896,7 @@ class MainWindow(QMainWindow):
                     return
                 selected_vars = []
                 for item in selected_items:
-                    var_info = item.data(Qt.UserRole)
+                    var_info = item.data(Qt.ItemDataRole.UserRole)
                     if var_info:
                         selected_vars.append(var_info)
                     else:
@@ -817,7 +919,7 @@ class MainWindow(QMainWindow):
                     return
                 y_vars = []
                 for item in selected_items:
-                    var_name = item.data(Qt.UserRole)
+                    var_name = item.data(Qt.ItemDataRole.UserRole)
                     if var_name:
                         y_vars.append(var_name)
                     else:

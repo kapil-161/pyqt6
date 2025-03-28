@@ -5,16 +5,15 @@ Provides tabular view of DSSAT output data
 import os
 import sys
 import logging
-from typing import List, Dict, Optional, Any
+from typing import  Any
 import numpy as np
 import pandas as pd
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableView, QHeaderView,
-    QPushButton, QHBoxLayout, QFileDialog, QGroupBox,
-    QCheckBox, QLabel, QComboBox
+    QPushButton, QHBoxLayout, QFileDialog, QGroupBox, QLabel, QComboBox
 )
-from PyQt5.QtCore import Qt, QAbstractTableModel, QModelIndex, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt6.QtCore import Qt, QAbstractTableModel, pyqtSlot
+
 
 # Add project root to path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -36,11 +35,11 @@ class PandasTableModel(QAbstractTableModel):
     def columnCount(self, parent=None):
         return len(self._data.columns)
 
-    def data(self, index, role=Qt.DisplayRole):
+    def data(self, index, role=Qt.ItemDataRole.DisplayRole):
         if not index.isValid():
             return None
             
-        if role == Qt.DisplayRole:
+        if role == Qt.ItemDataRole.DisplayRole:
             value = self._data.iloc[index.row(), index.column()]
             # Format based on data type
             if pd.isna(value):
@@ -54,9 +53,9 @@ class PandasTableModel(QAbstractTableModel):
                 
         return None
 
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+    def headerData(self, section, orientation, role=Qt.ItemDataRole.DisplayRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
                 return str(self._data.columns[section])
             else:
                 return str(self._data.index[section])
@@ -68,7 +67,7 @@ class PandasTableModel(QAbstractTableModel):
         col_name = self._data.columns[column]
         self._data = self._data.sort_values(
             col_name, 
-            ascending=(order == Qt.AscendingOrder)
+            ascending=(order == Qt.SortOrder.AscendingOrder)
         )
         self.layoutChanged.emit()
 
@@ -134,7 +133,7 @@ class DataTableWidget(QWidget):
         self.table_view = QTableView()
         self.table_view.setSortingEnabled(True)
         self.table_view.setAlternatingRowColors(True)
-        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Interactive)
+        self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.table_view.horizontalHeader().setStretchLastSection(True)
         self.table_view.verticalHeader().setVisible(True)
         layout.addWidget(self.table_view)

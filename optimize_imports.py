@@ -30,7 +30,7 @@ lazy_import = LazyImporter()
 # pg = lazy_import('pyqtgraph')
 
 # Optimize Qt settings for faster loading
-from PyQt5.QtCore import Qt, QCoreApplication
+from PyQt6.QtCore import Qt, QCoreApplication
 QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
 QCoreApplication.setAttribute(Qt.AA_UseDesktopOpenGL)
 QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)

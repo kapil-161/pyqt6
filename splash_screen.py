@@ -2,9 +2,9 @@ import sys
 import os
 import time
 import logging
-from PyQt5.QtWidgets import QApplication, QSplashScreen
-from PyQt5.QtCore import Qt, QPointF
-from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QFont, QBrush
+from PyQt6.QtWidgets import QApplication, QSplashScreen
+from PyQt6.QtCore import Qt, QPointF
+from PyQt6.QtGui import QPixmap, QPainter, QColor, QPen, QFont, QBrush
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -63,7 +63,7 @@ class DSSATSplashScreen(QSplashScreen):
             pixmap.fill(BACKGROUND_COLOR)
         
         painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Do all drawing
         self._draw_background_grid(painter)
@@ -79,7 +79,7 @@ class DSSATSplashScreen(QSplashScreen):
 
     def _draw_background_grid(self, painter):
         """Draw grid lines"""
-        painter.setPen(QPen(GRID_COLOR, 1, Qt.SolidLine))
+        painter.setPen(QPen(GRID_COLOR, 1, Qt.PenStyle.SolidLine))
         
         # Graph area dimensions
         graph_width = self.width - GRAPH_MARGIN_LEFT - GRAPH_MARGIN_RIGHT
@@ -141,7 +141,7 @@ class DSSATSplashScreen(QSplashScreen):
                 
             painter.drawText(
                 GRAPH_MARGIN_LEFT - 45, int(y_pos) + 5, 
-                40, 20, Qt.AlignRight | Qt.AlignVCenter, label
+                40, 20, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label
             )
         
         # X-axis labels (dates)
@@ -150,16 +150,16 @@ class DSSATSplashScreen(QSplashScreen):
             x_pos = GRAPH_MARGIN_LEFT + (graph_width / (len(CROP_DATA) - 1)) * i
             painter.drawText(
                 int(x_pos) - 30, self.height - GRAPH_MARGIN_BOTTOM + 15,
-                60, 20, Qt.AlignCenter, date
+                60, 20, Qt.AlignmentFlag.AlignCenter, date
             )
             
         # Bold "DATE" label centered under x-axis
-        font = QFont("Arial", 10, QFont.Bold)
+        font = QFont("Arial", 10, QFont.Weight.Bold)
         painter.setFont(font)
         painter.setPen(QColor(0, 0, 255))  # Blue color
         painter.drawText(
             GRAPH_MARGIN_LEFT, self.height - 40,
-            graph_width, 30, Qt.AlignCenter, "DATE"
+            graph_width, 30, Qt.AlignmentFlag.AlignCenter, "DATE"
         )
 
     def _draw_data(self, painter):
@@ -182,13 +182,13 @@ class DSSATSplashScreen(QSplashScreen):
             obs_points.append(QPointF(x_pos, obs_y_pos))
         
         # Draw simulated data line
-        pen = QPen(LINE_COLOR, 2, Qt.SolidLine)
+        pen = QPen(LINE_COLOR, 2, Qt.PenStyle.SolidLine)
         painter.setPen(pen)
         for i in range(1, len(sim_points)):
             painter.drawLine(sim_points[i-1], sim_points[i])
         
         # Draw observed data points as squares
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(POINT_COLOR))
         for point in obs_points:
             painter.drawRect(int(point.x() - 4), int(point.y() - 4), 8, 8)
@@ -196,16 +196,16 @@ class DSSATSplashScreen(QSplashScreen):
     def _draw_labels(self, painter):
         """Draw title and y-axis label"""
         # Draw title
-        font = QFont("Arial", 14, QFont.Bold)
+        font = QFont("Arial", 14, QFont.Weight.Bold)
         painter.setFont(font)
-        painter.setPen(Qt.black)
+        painter.setPen(Qt.GlobalColor.black)
         painter.drawText(
             0, 20, self.width, 30, 
-            Qt.AlignCenter, "DSSAT Visualization"
+            Qt.AlignmentFlag.AlignCenter, "DSSAT Visualization"
         )
         
         # Draw y-axis label text (rotated)
-        font = QFont("Arial", 10, QFont.Bold)
+        font = QFont("Arial", 10, QFont.Weight.Bold)
         painter.setFont(font)
         painter.setPen(Y_AXIS_LABEL_COLOR)  # Blue for y-axis label
         
@@ -214,17 +214,17 @@ class DSSATSplashScreen(QSplashScreen):
         painter.rotate(-90)
         painter.drawText(
             -100, 0, 200, 20, 
-            Qt.AlignCenter, "Tops wt kg/ha"
+            Qt.AlignmentFlag.AlignCenter, "Tops wt kg/ha"
         )
         painter.restore()
         
         # Draw loading text
         font = QFont("Arial", 10)
         painter.setFont(font)
-        painter.setPen(Qt.black)
+        painter.setPen(Qt.GlobalColor.black)
         painter.drawText(
             0, self.height - 30, self.width, 30,
-            Qt.AlignCenter, "Loading application..."
+            Qt.AlignmentFlag.AlignCenter, "Loading application..."
         )
 
     def _draw_legend(self, painter):
@@ -254,24 +254,24 @@ class DSSATSplashScreen(QSplashScreen):
         )
         
         # Simulated Data - text
-        painter.setPen(Qt.black)
+        painter.setPen(Qt.GlobalColor.black)
         painter.drawText(
             legend_x + 40, line1_y - 5, 
             legend_width - 45, 20, 
-            Qt.AlignLeft | Qt.AlignVCenter, "Simulated"
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "Simulated"
         )
         
         # Observed Data - point
-        painter.setPen(Qt.NoPen)
+        painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(QBrush(POINT_COLOR))
         painter.drawRect(legend_x + 21, line2_y - 4, 8, 8)
         
         # Observed Data - text
-        painter.setPen(Qt.black)
+        painter.setPen(Qt.GlobalColor.black)
         painter.drawText(
             legend_x + 40, line2_y - 5, 
             legend_width - 45, 20, 
-            Qt.AlignLeft | Qt.AlignVCenter, "Observed"
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "Observed"
         )
 
 def show_splash(app=None):
@@ -306,4 +306,4 @@ if __name__ == "__main__":
     time.sleep(3)
     print("Application loaded")
     
-    sys.exit(app.exec_())
+    sys.exit(app.exec())  # Note: In PyQt6, exec() doesn't have parentheses

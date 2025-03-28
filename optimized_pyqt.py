@@ -2,9 +2,9 @@
 # Add to your code to optimize PyQt5 loading
 
 # Only import essential PyQt5 modules
-import PyQt5.QtCore
-import PyQt5.QtWidgets
-import PyQt5.QtGui
+import PyQt6.QtCore
+import PyQt6.QtWidgets
+import PyQt6.QtGui
 
 # Prevent loading these modules which aren't needed
 sys.modules['PyQt5.QtNetwork'] = None
@@ -14,7 +14,7 @@ sys.modules['PyQt5.QtMultimedia'] = None
 sys.modules['PyQt5.QtWebEngine'] = None
 
 # Optimize Qt settings for faster loading
-from PyQt5.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication
 QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
 QCoreApplication.setAttribute(Qt.AA_UseDesktopOpenGL)
 QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts)

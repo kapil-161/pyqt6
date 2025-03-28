@@ -5,7 +5,7 @@ import os
 
 def install_dependencies():
     dependencies = [
-        "PyQt5==5.15.9", 
+        "pyqt6==6.2.2",
         "pyqtgraph==0.13.3", 
         "pandas==2.0.3", 
         "numpy==1.24.3"

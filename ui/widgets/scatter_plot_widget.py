@@ -5,16 +5,16 @@ Replaces Dash/Plotly with PyQtGraph for scatter plotting
 import os
 import sys
 import logging
-from typing import List, Dict, Optional, Any, Tuple
+from typing import List, Dict,  Any
 
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
-from PyQt5.QtWidgets import (
+from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QGridLayout, 
-    QSplitter, QFrame,QHBoxLayout
+     QFrame, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 
 # Add project root to path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -134,7 +134,7 @@ class ScatterPlotWidget(QWidget):
             elif hasattr(var_item, 'data') and callable(var_item.data):
                 # QListWidgetItem with UserRole data
                 try:
-                    var_data = var_item.data(Qt.UserRole)
+                    var_data = var_item.data(Qt.ItemDataRole.UserRole)
                     if var_data and isinstance(var_data, tuple) and len(var_data) == 3:
                         selected_pairs.append(var_data)
                         logger.info(f"Added from QListWidgetItem data: {var_data}")
@@ -252,7 +252,7 @@ class ScatterPlotWidget(QWidget):
         # Add title to legend
         legend_title = QLabel("Legend")
         legend_title.setStyleSheet("font-weight: bold; font-size: 12pt;")
-        legend_title.setAlignment(Qt.AlignCenter)
+        legend_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         legend_layout.addWidget(legend_title)
         
         # Add 1:1 line to legend
@@ -262,8 +262,8 @@ class ScatterPlotWidget(QWidget):
         line_entry.setLayout(line_layout)
         
         line_sample = QFrame()
-        line_sample.setFrameShape(QFrame.HLine)
-        line_sample.setFrameShadow(QFrame.Plain)
+        line_sample.setFrameShape(QFrame.Shape.HLine)
+        line_sample.setFrameShadow(QFrame.Shadow.Plain)
         line_sample.setStyleSheet("border: 1px dashed red;")
         line_sample.setFixedWidth(30)
         line_sample.setFixedHeight(2)
@@ -292,7 +292,7 @@ class ScatterPlotWidget(QWidget):
             
             # Create a color sample
             color_sample = QFrame()
-            color_sample.setFrameShape(QFrame.Box)
+            color_sample.setFrameShape(QFrame.Shape.Box)
             color_sample.setStyleSheet(f"background-color: {color}; border: 1px solid black;")
             color_sample.setFixedWidth(15)
             color_sample.setFixedHeight(15)
@@ -389,7 +389,7 @@ class ScatterPlotWidget(QWidget):
                 logger.info(f"1:1 line range: {range_min} to {range_max}")
                     
                 # Add 1:1 line
-                line_pen = pg.mkPen('r', width=1, style=Qt.DashLine)
+                line_pen = pg.mkPen('r', width=1, style=Qt.PenStyle.DashLine)
                 plot.plot([range_min, range_max], [range_min, range_max], 
                         pen=line_pen)
                     

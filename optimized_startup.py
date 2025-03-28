@@ -1,26 +1,17 @@
-"""
-Optimized startup settings for DSSAT Viewer
-Includes performance optimizations for PyQt and PyQtGraph
-"""
 import os
 import sys
 import logging
-from PyQt5.QtCore import Qt, QCoreApplication, QSettings
-from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtCore import Qt, QCoreApplication, QSettings
+from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QApplication, QStyleFactory
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
 def optimize_qt_settings():
     """Apply performance optimizations for PyQt"""
-    # Disable high DPI scaling which can cause performance issues
-    # This should be called before QApplication is initialized
-    QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, False)
-    QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
-    
-    # Disable desktop effects for performance
-    QCoreApplication.setAttribute(Qt.AA_DisableWindowContextHelpButton, True)
+    # We'll skip the high DPI settings since they're causing issues
+    # and they might not be critical for the application
     
     # Set application name and organization for settings
     QCoreApplication.setApplicationName("DSSAT Viewer")
@@ -87,13 +78,10 @@ def set_memory_optimizations():
 def optimize_application(app):
     """Apply optimizations to a QApplication instance"""
     # Set style to Fusion which is generally more performant
-    app.setStyle('Fusion')
+    app.setStyle(QStyleFactory.create('Fusion'))
     
-    # Disable animated effects
-    app.setEffectEnabled(Qt.UI_AnimateCombo, False)
-    app.setEffectEnabled(Qt.UI_AnimateTooltip, False)
-    app.setEffectEnabled(Qt.UI_FadeMenu, False)
-    app.setEffectEnabled(Qt.UI_FadeTooltip, False)
+    # In PyQt6, UI effects are handled differently
+    # We need to use stylesheet or other approaches instead
     
     # Set desktop settings for performance
     settings = QSettings()
@@ -103,18 +91,17 @@ def optimize_application(app):
     
     # Set palette for better performance (less translucency)
     palette = QPalette()
-    palette.setColor(QPalette.Window, QColor(240, 240, 240))
-    palette.setColor(QPalette.WindowText, Qt.black)
+    palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))
+    palette.setColor(QPalette.ColorRole.WindowText, Qt.GlobalColor.black)
     app.setPalette(palette)
     
     # Set a reasonable default font
-    from PyQt5.QtGui import QFont
+    from PyQt6.QtGui import QFont
     app.setFont(QFont("Segoe UI", 9))
     
     # Set OpenGL settings if available
     try:
-        from PyQt5.QtCore import QCoreApplication
-        QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
     except:
         pass
     

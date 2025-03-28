@@ -1,17 +1,17 @@
 """
 DSSAT Viewer - Main entry point
-Updated with pure PyQt5 implementation (no Dash)
+Updated with pure PyQt6 implementation (no Dash)
 Optimized for performance and fast tab switching
 """
 import sys
 import os
 import warnings
-import traceback
+
 import logging
 import gc
 from pathlib import Path
-from PyQt5.QtCore import Qt, QSize, QCoreApplication
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import  QSize, QCoreApplication
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 # Configure logging first - use INFO level to avoid excessive logs
 logging.basicConfig(
@@ -71,16 +71,10 @@ def center_window(window):
         (screen.width() - window.width()) // 2,
         (screen.height() - window.height()) // 2
     )
-
 def create_application():
     """Create and configure the QApplication instance with optimizations."""
     if not QApplication.instance():
-        # Set application attributes for better performance
-        QCoreApplication.setAttribute(Qt.AA_UseHighDpiPixmaps, False)
-        QCoreApplication.setAttribute(Qt.AA_EnableHighDpiScaling, False)
-        QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
-        
-        # Create application
+        # Create application first
         app = QApplication(sys.argv)
         
         # Set application name and organization
@@ -90,8 +84,14 @@ def create_application():
         # Apply more optimizations if available
         try:
             app = optimize_application(app)
-        except:
-            app.setStyle('Fusion')  # Use Fusion style for better performance
+        except Exception as e:
+            logger.warning(f"Error applying optimizations: {e}")
+            # Note: In PyQt6, setStyle requires a QStyle instance, not a string
+            try:
+                from PyQt6.QtWidgets import QStyleFactory
+                app.setStyle(QStyleFactory.create('Fusion'))
+            except Exception as e2:
+                logger.warning(f"Error setting style: {e2}")
             
         return app
     return QApplication.instance()
@@ -117,7 +117,9 @@ def main():
             from optimized_startup import optimize_application
             app = optimize_application(app)
         except:
-            app.setStyle('Fusion')  # Use Fusion style for better performance
+            # Use QStyleFactory to create a Fusion style instance
+            from PyQt6.QtWidgets import QStyleFactory
+            app.setStyle(QStyleFactory.create('Fusion'))
             
         # Show splash screen
         splash = show_splash(app)
@@ -157,7 +159,7 @@ def main():
             splash.finish(main_window)
             
             # Start event loop
-            return app.exec_()
+            return app.exec()  # In PyQt6, exec() doesn't have parentheses
             
         except Exception as e:
             splash.close()

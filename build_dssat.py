@@ -51,7 +51,7 @@ qt_plugins = [
 
 # Create minimal hooks
 def minimal_hooks():
-    return ['PyQt5', 'PyQt5.QtCore', 'PyQt5.QtWidgets', 'PyQt5.QtGui', 
+    return ['PyQt6', 'PyQt6.QtCore', 'PyQt6.QtWidgets', 'PyQt6.QtGui', 
             'pyqtgraph', 'pandas.core.frame', 'pandas.core.series', 
             'numpy.core', 'jaraco.text', 'plistlib']
 
@@ -60,8 +60,8 @@ excluded_modules = [
     'matplotlib', 'scipy', 'tkinter', '_tkinter', 'Tkinter', 'wx',
     'IPython', 'notebook', 'sphinx', 'docutils',
     'PIL', 'sqlalchemy', 'tornado', 'jinja2', 'flask',
-    'PyQt5.QtWebEngine', 'PyQt5.QtMultimedia', 'PyQt5.QtNetwork',
-    'PyQt5.QtQml', 'PyQt5.QtQuick', 
+    'PyQt6.QtWebEngine', 'PyQt6.QtMultimedia', 'PyQt6.QtNetwork',
+    'PyQt6.QtQml', 'PyQt6.QtQuick', 
     'plotly', 'dash'
 ]
 
@@ -72,7 +72,7 @@ a = Analysis(
     datas=[],
     hiddenimports=minimal_hooks(),
     hookspath=['.'],
-    hooksconfig={'pyqt5': {'plugins': qt_plugins}},
+    hooksconfig={'pyqt6': {'plugins': qt_plugins}},
     runtime_hooks=[],
     excludes=excluded_modules,
     win_no_prefer_redirects=False,
@@ -84,8 +84,8 @@ a = Analysis(
 # Filter unnecessary Qt plugins
 def filter_binaries(binaries):
     excluded_patterns = [
-        'Qt5WebEngine', 'Qt5Designer', 'Qt5Quick', 'Qt5Qml', 'Qt5Help',
-        'Qt5Multimedia'
+        'Qt6WebEngine', 'Qt6Designer', 'Qt6Quick', 'Qt6Qml', 'Qt6Help',
+        'Qt6Multimedia'
     ]
     
     return [(name, path, typ) for name, path, typ in binaries 

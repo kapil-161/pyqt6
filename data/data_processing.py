@@ -18,7 +18,7 @@ from pandas import to_numeric
 from numpy import arange, min, max, full, isclose, mean
 
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import  List, Tuple
 from functools import lru_cache
 import config
 
