@@ -260,6 +260,8 @@ def process_treatment_block(lines: List[str]) -> Optional[DataFrame]:
                 df["TRT"] = trt_num
             except IndexError:
                 pass
+        if 'CR' in df.columns:
+            df = df.drop(columns=['CR'])
 
         return df
 
@@ -328,6 +330,8 @@ def read_observed_data(selected_folder: str, selected_experiment: str, x_var: st
         # Create and process DataFrame
         df = DataFrame(data_rows, columns=headers)
         df = df.rename(columns={"TRNO": "TRT"})
+        df = df.rename(columns={"TR": "TRT"})
+        df = df.rename(columns={"TN": "TRT"})
         df = df.loc[:, df.notna().any()]
         df = standardize_dtypes(df)
         
@@ -338,7 +342,7 @@ def read_observed_data(selected_folder: str, selected_experiment: str, x_var: st
             df = df.dropna(subset=["DATE"])
             
         # Process treatment columns
-        for col in ["TRNO", "TRT"]:
+        for col in ["TRNO", "TRT","TR", "TN"]:
             if col in df.columns:
                 df[col] = df[col].astype(str)
                 

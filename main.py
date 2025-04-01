@@ -1,6 +1,7 @@
 """
 DSSAT Viewer - Main entry point
 Updated with pure PyQt6 implementation (no Dash)
+Updated with pure PyQt6 implementation (no Dash)
 Optimized for performance and fast tab switching
 """
 import sys

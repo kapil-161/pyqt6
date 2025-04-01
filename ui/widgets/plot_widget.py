@@ -47,6 +47,11 @@ class PlotWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        # Cache commonly used values
+        self.variable_info_cache = {}
+        self.date_cache = {}
+        self.treatment_display_cache = {}
+        
         # Set size policy for proper resizing
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
@@ -159,14 +164,8 @@ class PlotWidget(QWidget):
             if self.sim_data is not None:
                 self.plot_view.autoRange()
     
-    def plot_time_series(self, 
-                        selected_folder: str, 
-                        selected_out_files: List[str],
-                        selected_experiment: str,
-                        selected_treatments: List[str],
-                        x_var: str,
-                        y_vars: List[str],
-                        treatment_names: Dict[str, str] = None):
+    def plot_time_series(self, selected_folder, selected_out_files, selected_experiment, 
+                        selected_treatments, x_var, y_vars, treatment_names=None):
         """
         Create time series plot with simulation and observed data
         
@@ -179,6 +178,37 @@ class PlotWidget(QWidget):
             y_vars: Y-axis variables
             treatment_names: Dictionary mapping treatment numbers to names
         """
+        # Vectorized date conversion
+        def batch_date_convert(df):
+            if 'YEAR' in df.columns and 'DOY' in df.columns:
+                df['DATE'] = pd.to_datetime(
+                    df['YEAR'].astype(str) + df['DOY'].astype(str).str.zfill(3), 
+                    format='%Y%j'
+                )
+            return df
+
+        # Process simulation data in batches
+        sim_data_list = []
+        for file_path in selected_out_files:
+            df = read_file(file_path)
+            if df is not None and not df.empty:
+                df.columns = df.columns.str.strip().str.upper()
+                
+                # Skip conversion for non-numeric columns like 'CR'
+                numeric_columns = df.columns[~df.columns.isin(['CR', 'CROP'])]
+                for col in numeric_columns:
+                    try:
+                        df[col] = pd.to_numeric(df[col], errors='coerce')
+                    except Exception as e:
+                        logger.warning(f"Could not convert column {col} to numeric: {e}")
+                
+                df = batch_date_convert(df)
+                df['source'] = 'sim'
+                df['FILE'] = os.path.basename(file_path)
+                sim_data_list.append(df)
+        
+        sim_data = pd.concat(sim_data_list, ignore_index=True) if sim_data_list else None
+
         # Clear previous plot
         self.plot_view.clear()
         
@@ -420,7 +450,7 @@ class PlotWidget(QWidget):
                                 except Exception as e:
                                     logger.warning(f"Error converting dates: {e}")
                                     
-                                x_values = np.array(x_values, dtype=np.float64)
+                                #x_values = np.array(x_values, dtype=np.float64)
                                 y_values = np.array(y_values, dtype=np.float64)
                                 
                                 # Add line to plot

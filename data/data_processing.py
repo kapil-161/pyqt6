@@ -39,7 +39,9 @@ def standardize_dtypes(df: DataFrame) -> DataFrame:
     # Define column groups for efficient bulk processing
     timestamp_cols = df.columns.intersection({"YEAR", "DOY", "DATE"})
     treatment_cols = df.columns.intersection({"TRT", "TRNO", "TR"})
-    potential_numeric_cols = df.columns.difference(timestamp_cols.union(treatment_cols))
+    # Explicitly exclude the CR column from numeric conversion
+    non_numeric_cols = timestamp_cols.union(treatment_cols).union({"CR"})
+    potential_numeric_cols = df.columns.difference(non_numeric_cols)
     
     # Process timestamp columns
     for col in timestamp_cols:
@@ -54,6 +56,10 @@ def standardize_dtypes(df: DataFrame) -> DataFrame:
     for col in treatment_cols:
         if col in df.columns:
             df[col] = df[col].astype('category')
+    
+    # Handle CR column specifically if present
+    if 'CR' in df.columns:
+        df['CR'] = df['CR'].astype('category')
     
     # Process numeric columns in bulk
     if len(potential_numeric_cols) > 0:
@@ -264,7 +270,7 @@ def get_evaluate_variable_pairs(data: DataFrame) -> List[Tuple[str, str, str]]:
     
     # Get all column names once
     columns = set(data.columns)
-    metadata_cols = {'RUN', 'EXCODE', 'TRNO', 'RN', 'CR'}
+    metadata_cols = {'RUN', 'EXCODE', 'TRNO','TN','TRT','TR', 'RN', 'CR'}
     
     # Find all simulated variables in one pass
     sim_vars = [col for col in columns if col.endswith('S') and col not in metadata_cols]
@@ -312,7 +318,7 @@ def get_all_evaluate_variables(data: DataFrame) -> List[Tuple[str, str]]:
     variables = []
     
     # Identify metadata columns to exclude
-    metadata_cols = {'RUN', 'EXCODE', 'TRNO', 'RN', 'CR'}
+    metadata_cols = {'RUN', 'EXCODE', 'TRNO','TN','TRT','TR', 'RN', 'CR'}
     
     # Get columns with at least one non-missing value
     valid_cols = [col for col in data.columns 
