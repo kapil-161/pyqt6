@@ -1026,6 +1026,7 @@ class MainWindow(QMainWindow):
                 if not crop_info:
                     continue
                 file_path = os.path.join(crop_info['directory'], out_file)
+                print(f"Reading file with full path: {file_path}")
                 file_data = read_file(file_path)
                 if file_data is not None and not file_data.empty:
                     file_data['FILE'] = out_file

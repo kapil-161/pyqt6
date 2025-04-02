@@ -1,6 +1,6 @@
 import sys
 import os
-
+import pandas as pd
 # Add project root to Python path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_dir)
@@ -173,7 +173,11 @@ def prepare_out_files(selected_folder: str) -> List[str]:
 def read_file(file_path: str) -> Optional[DataFrame]:
     """Read and process DSSAT output file with optimized performance."""
     try:
+        # Normalize the file path to ensure the correct format
         file_path = os.path.normpath(file_path)
+        print(f"Attempting to open file: {file_path}")
+        print(f"File exists check: {os.path.exists(file_path)}")
+        
         if not os.path.exists(file_path):
             logger.error(f"File does not exist: {file_path}")
             return None
@@ -212,13 +216,13 @@ def read_file(file_path: str) -> Optional[DataFrame]:
 
         # Combine and process data efficiently
         if data_frames:
-            combined_data = concat(data_frames, ignore_index=True)
+            combined_data = pd.concat(data_frames, ignore_index=True)
             combined_data = combined_data.loc[:, combined_data.notna().any()]
             combined_data = standardize_dtypes(combined_data)
             
             # Create DATE column if possible
             if "YEAR" in combined_data.columns and "DOY" in combined_data.columns:
-                combined_data["DATE"] = to_datetime(
+                combined_data["DATE"] = pd.to_datetime(
                     combined_data["YEAR"].astype(str) + 
                     combined_data["DOY"].astype(str).str.zfill(3),
                     format="%Y%j",
@@ -232,6 +236,7 @@ def read_file(file_path: str) -> Optional[DataFrame]:
     except Exception as e:
         logger.error(f"Error processing file {file_path}: {str(e)}")
         return None
+
 
 def process_treatment_block(lines: List[str]) -> Optional[DataFrame]:
     """Helper function to process a treatment block of data."""

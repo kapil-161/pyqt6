@@ -1,10 +1,6 @@
-#!/usr/bin/env python
-"""
-Final DSSAT Viewer Build Script (Fixed)
-
-This script creates a single-file executable with fixed command-line arguments
-to handle Qt binding conflicts and OpenGL issues.
-"""
+# -*- coding: utf-8 -*-
+from PyInstaller.building.build_main import Analysis, PYZ, EXE
+from PyInstaller.config import CONF
 import os
 import sys
 import subprocess
@@ -19,6 +15,16 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Ensure necessary PyInstaller configurations are set
+base_path = os.getcwd()
+CONF['spec'] = os.path.join(base_path, 'dssat_viewer.spec')
+CONF['workpath'] = os.path.join(base_path, 'build')
+CONF['warnfile'] = os.path.join(base_path, 'build', 'warn.txt')  # Add this line to fix the KeyError
+CONF['xref-file'] = os.path.join(base_path, 'build', 'xref.txt')  # Add this line to fix the KeyError
+CONF['distpath'] = os.path.join(base_path, 'dist')
+CONF['code_cache'] = {}  # Initialize an empty code cache dictionary
+os.makedirs(CONF['workpath'], exist_ok=True)
+os.makedirs(CONF['distpath'], exist_ok=True)
 def create_jaraco_hook():
     """Create jaraco.text fix hook for PyInstaller"""
     hook_content = """
@@ -113,7 +119,8 @@ excluded_modules = [
     'PyQt6.QtQml', 'PyQt6.QtQuick', 
     'plotly', 'dash'
 ]
-
+upx_path = find_upx()
+CONF['upx_available'] = upx_path is not None
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -159,6 +166,50 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,        # Show console for error messages
     disable_windowed_traceback=False,  # Enable traceback
+)
+
+def create_spec_file():
+    """Create a spec file for PyInstaller"""
+    spec_content = f"""
+# -*- mode: python ; coding: utf-8 -*-
+
+from PyInstaller.utils.hooks import collect_submodules
+
+block_cipher = None
+
+a = Analysis(
+    ['main.py'],
+    pathex=[],
+    binaries=[],
+    datas=[],
+    hiddenimports={minimal_hooks()},
+    hookspath=['.'],
+    hooksconfig={{'pyqt6': {{'plugins': {qt_plugins}}}}},
+    runtime_hooks=[],
+    excludes={excluded_modules},
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
+    noarchive=False,
+)
+
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    [],
+    name='dssat_viewer',
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,
+    runtime_tmpdir=None,
+    console=False,
+    disable_windowed_traceback=False,
 )
 """
     
@@ -290,7 +341,7 @@ def build_exe_final():
     create_opengl_exclusion_hook()
     
     # Run final build
-    if not run_build_final():
+    if not create_spec_file():
         return False
     
     # Create batch file

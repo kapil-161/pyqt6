@@ -138,7 +138,7 @@ def get_crop_details() -> List[dict]:
                         for crop in crop_details:
                             if crop['code'] == code:
                                 crop['directory'] = directory
-                                logger.info(f"Found directory for {crop['name']}: {directory}")
+                                #logger.info(f"Found directory for {crop['name']}: {directory}")
                                 break
         
         return crop_details
