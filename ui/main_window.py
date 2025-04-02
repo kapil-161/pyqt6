@@ -542,7 +542,12 @@ class MainWindow(QMainWindow):
                         self.y_var_selector.item(i).setSelected(True)
                         break
             elif all_columns:
-                self.y_var_selector.item(0).setSelected(True)
+                # Find the first non-DATE column to select as default
+                for i in range(self.y_var_selector.count()):
+                    var_name = self.y_var_selector.item(i).data(Qt.ItemDataRole.UserRole)
+                    if var_name != "DATE" and var_name != "DOY" and var_name != "YEAR":
+                        self.y_var_selector.item(i).setSelected(True)
+                        break
         except Exception as e:
             logging.error(f"Error loading variables: {e}")
             self.show_error("Error loading variables", str(e))
@@ -635,7 +640,69 @@ class MainWindow(QMainWindow):
     def mark_data_needs_refresh(self):
         self._data_needs_refresh = True
         self._tab_content_loaded = {}
-    
+    def move_selected_items_to_top(self, list_widget):
+        """Move all selected items to the top of the list widget."""
+        # Use a flag to prevent recursive calls
+        if hasattr(self, '_is_reordering') and self._is_reordering:
+            return
+        
+        self._is_reordering = True
+        
+        try:
+            selected_items = []
+            
+            # Extract all selected items
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if item.isSelected():
+                    # Create a clone of the item
+                    clone = QListWidgetItem(item.text())
+                    clone.setData(Qt.ItemDataRole.UserRole, item.data(Qt.ItemDataRole.UserRole))
+                    selected_items.append(clone)
+            
+            if not selected_items:
+                return  # No selected items to move
+            
+            # Get all unselected items
+            unselected_items = []
+            for i in range(list_widget.count()):
+                item = list_widget.item(i)
+                if not item.isSelected():
+                    clone = QListWidgetItem(item.text())
+                    clone.setData(Qt.ItemDataRole.UserRole, item.data(Qt.ItemDataRole.UserRole))
+                    unselected_items.append(clone)
+            
+            # Temporarily disconnect signals to prevent recursive calls
+            list_widget.itemSelectionChanged.disconnect()
+            
+            # Clear the list and add items in the new order
+            list_widget.clear()
+            
+            # Add selected items first
+            for item in selected_items:
+                list_widget.addItem(item)
+                item.setSelected(True)
+            
+            # Add unselected items
+            for item in unselected_items:
+                list_widget.addItem(item)
+            
+            # Reconnect signals
+            if list_widget == self.treatment_list:
+                list_widget.itemSelectionChanged.connect(self.on_treatment_selection_changed)
+            elif list_widget == self.y_var_selector:
+                list_widget.itemSelectionChanged.connect(self.on_variable_selection_changed)
+            elif list_widget == self.scatter_var_selector:
+                list_widget.itemSelectionChanged.connect(self.on_scatter_var_selection_changed)
+            elif list_widget == self.out_file_selector:
+                list_widget.itemSelectionChanged.connect(self.on_out_file_selection_changed)
+                
+        finally:
+            self._is_reordering = False
+
+
+
+
     @pyqtSlot()
     def on_folder_changed(self):
         self.selected_folder = self.folder_selector.currentText()
@@ -665,6 +732,7 @@ class MainWindow(QMainWindow):
             trt_str = item.text().split(' - ')[0]
             self.selected_treatments.append(trt_str)
         self.update_ui_state()
+        
     
     @pyqtSlot()
     def on_run_button_clicked(self):
@@ -734,11 +802,13 @@ class MainWindow(QMainWindow):
     def on_out_file_selection_changed(self):
         self.load_variables()
         self.mark_data_needs_refresh()
+        self.move_selected_items_to_top(self.out_file_selector)
     
     @pyqtSlot()
     def on_variable_selection_changed(self):
         if self.content_area.currentIndex() in self._tab_content_loaded:
             self._tab_content_loaded.pop(self.content_area.currentIndex())
+        self.move_selected_items_to_top(self.y_var_selector)
     
     @pyqtSlot()
     def on_refresh_clicked(self):
@@ -818,6 +888,7 @@ class MainWindow(QMainWindow):
     def on_scatter_var_selection_changed(self):
         if 1 in self._tab_content_loaded:
             self._tab_content_loaded.pop(1)
+        self.move_selected_items_to_top(self.scatter_var_selector)
     
     @pyqtSlot(dict)
     def on_data_loaded(self, data):
@@ -958,10 +1029,29 @@ class MainWindow(QMainWindow):
                 file_data = read_file(file_path)
                 if file_data is not None and not file_data.empty:
                     file_data['FILE'] = out_file
+                    # Ensure TRT column exists - might be TRNO or another name
+                    if 'TRT' not in file_data.columns:
+                        if 'TRNO' in file_data.columns:
+                            file_data['TRT'] = file_data['TRNO']
+                        elif 'TR' in file_data.columns:
+                            file_data['TRT'] = file_data['TR']
+                        elif 'TN' in file_data.columns:
+                            file_data['TRT'] = file_data['TN']
+                        else:
+                            # No treatment column found, create default
+                            file_data['TRT'] = '1'
+                    # Ensure TRT is treated as string for filtering
+                    file_data['TRT'] = file_data['TRT'].astype(str)
                     all_data.append(file_data)
             if all_data:
                 combined_data = pd.concat(all_data, ignore_index=True)
-                filtered_data = combined_data[combined_data['TRT'].isin(self.selected_treatments)]
+                # Check if any selected treatments exist in the data
+                if any(trt in combined_data['TRT'].unique() for trt in self.selected_treatments):
+                    filtered_data = combined_data[combined_data['TRT'].isin(self.selected_treatments)]
+                else:
+                    # If no selected treatments match, show all data
+                    filtered_data = combined_data
+                    self.show_warning("Selected treatments not found in data")
                 self.data_table.set_data(filtered_data)
             else:
                 self.data_table.clear()
