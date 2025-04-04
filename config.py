@@ -9,9 +9,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Environment and initialization
-# Environment and initialization
-DSSAT_BASE = r"C:\DSSAT48"  # Replace with your actual DSSAT installation path
-DSSAT_EXE = "DSCSM048.EXE"   # Usually correct as is
+# For macOS, use the correct Applications folder path
+DSSAT_BASE = "/Applications/DSSAT48"  # This matches your actual installation location
+DSSAT_EXE = "DSCSM048.EXE"   # May need to be modified if Mac version uses different executable
 
 # Default values
 DEFAULT_ENCODING = 'utf-8'
