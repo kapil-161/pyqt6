@@ -8,9 +8,9 @@ from typing import List, Dict, Optional, Any
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QLabel, QComboBox, QPushButton, QGroupBox,
-    QMessageBox,  QListWidget, QCheckBox,
-     QApplication, 
-    QListWidgetItem, QProgressBar, QScrollArea, QSizePolicy
+    QMessageBox,  QListWidget, QCheckBox, QApplication, 
+    QListWidgetItem, QProgressBar, QScrollArea, QSizePolicy,
+    QLineEdit  # Add this import
 )
 from PyQt6.QtCore import Qt, QTimer,  pyqtSignal, pyqtSlot
 
@@ -324,6 +324,13 @@ class MainWindow(QMainWindow):
         file_group = QGroupBox("Output Files")
         file_layout = QVBoxLayout()
         file_group.setLayout(file_layout)
+        
+        # Add search bar for output files
+        self.out_file_search = QLineEdit()
+        self.out_file_search.setPlaceholderText("Search output files...")
+        self.out_file_search.textChanged.connect(self.filter_out_files)
+        file_layout.addWidget(self.out_file_search)
+        
         self.out_file_selector = QListWidget()
         self.out_file_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.out_file_selector.setMinimumHeight(60)
@@ -337,6 +344,13 @@ class MainWindow(QMainWindow):
         self.x_var_selector = QComboBox()
         ts_layout.addWidget(self.x_var_selector)
         ts_layout.addWidget(QLabel("Y Variables"))
+        
+        # Add search bar for Y variables
+        self.y_var_search = QLineEdit()
+        self.y_var_search.setPlaceholderText("Search Y variables...")
+        self.y_var_search.textChanged.connect(self.filter_y_vars)
+        ts_layout.addWidget(self.y_var_search)
+        
         self.y_var_selector = QListWidget()
         self.y_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.y_var_selector.setMinimumHeight(120)
@@ -478,6 +492,8 @@ class MainWindow(QMainWindow):
         
     def load_output_files(self):
         try:
+            # Store previous search text
+            prev_search = self.out_file_search.text() if hasattr(self, 'out_file_search') else ""
             if not self.selected_folder:
                 return
             out_files = prepare_out_files(self.selected_folder)
@@ -490,12 +506,17 @@ class MainWindow(QMainWindow):
                         self.out_file_selector.item(i).setSelected(True)
             elif out_files:
                 self.out_file_selector.item(0).setSelected(True)
+            # Reapply search filter
+            if prev_search:
+                self.filter_out_files(prev_search)
         except Exception as e:
             logging.error(f"Error loading output files: {e}")
             self.show_error("Error loading output files", str(e))
     
     def load_variables(self):
         try:
+            # Store previous search text
+            prev_search = self.y_var_search.text() if hasattr(self, 'y_var_search') else ""
             selected_files = [item.text() for item in 
                             self.out_file_selector.selectedItems()]
             
@@ -548,6 +569,9 @@ class MainWindow(QMainWindow):
                     if var_name != "DATE" and var_name != "DOY" and var_name != "YEAR":
                         self.y_var_selector.item(i).setSelected(True)
                         break
+            # Reapply search filter
+            if prev_search:
+                self.filter_y_vars(prev_search)
         except Exception as e:
             logging.error(f"Error loading variables: {e}")
             self.show_error("Error loading variables", str(e))
@@ -1062,3 +1086,13 @@ class MainWindow(QMainWindow):
             
     def closeEvent(self, event):
         event.accept()
+    
+    def filter_out_files(self, text):
+        for i in range(self.out_file_selector.count()):
+            item = self.out_file_selector.item(i)
+            item.setHidden(text.lower() not in item.text().lower())
+    
+    def filter_y_vars(self, text):
+        for i in range(self.y_var_selector.count()):
+            item = self.y_var_selector.item(i)
+            item.setHidden(text.lower() not in item.text().lower())

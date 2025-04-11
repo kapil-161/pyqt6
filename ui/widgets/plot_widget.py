@@ -72,7 +72,7 @@ class PlotWidget(QWidget):
         """Setup the UI components"""
         # Main layout - horizontal layout with plot and legend
         main_layout = QHBoxLayout()
-        main_layout.setContentsMargins(5, 5, 5, 5)  # Add some padding
+        main_layout.setContentsMargins(0, 0, 0, 0)  # Add some padding
         self.setLayout(main_layout)
         
         # Left side - plot and scaling container
@@ -127,28 +127,37 @@ class PlotWidget(QWidget):
         # Add left container to main layout (80% of space)
         main_layout.addWidget(left_container, 80)
         
-        # Right side - legend container
-        # Create a scroll area
+        # Right side - legend container with FIXED position at top
         legend_scroll_area = QScrollArea()
         legend_scroll_area.setWidgetResizable(True)
         legend_scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         legend_scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         legend_scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        legend_scroll_area.setFixedWidth(200)  # Fixed width
         
-        # Create the legend container as the content of the scroll area
+        # Create a container widget for the legend with fixed alignment
         self.legend_container = QWidget()
         self.legend_layout = QVBoxLayout()
+        self.legend_layout.setSpacing(2)  # Reduced spacing between items
+        self.legend_layout.setContentsMargins(5, 0, 5, 0)  # Minimal margins
+        self.legend_layout.setAlignment(Qt.AlignmentFlag.AlignTop)  # Always align to top
+        
+        # Set a strict alignment policy
         self.legend_container.setLayout(self.legend_layout)
         
+        # Create a container to hold the legend container
+        legend_outer_widget = QWidget()
+        legend_outer_layout = QVBoxLayout()
+        legend_outer_layout.setContentsMargins(0, 0, 0, 0)
+        legend_outer_layout.addWidget(self.legend_container, 0, Qt.AlignmentFlag.AlignTop)  # Force top alignment
+        legend_outer_layout.addStretch(1)  # Add stretch at the bottom to push content to the top
+        legend_outer_widget.setLayout(legend_outer_layout)
+        
         # Set the legend container as the widget for the scroll area
-        legend_scroll_area.setWidget(self.legend_container)
+        legend_scroll_area.setWidget(legend_outer_widget)
         
         # Add the scroll area to the main layout
-        main_layout.addWidget(legend_scroll_area, 20)
-        
-        # Set initial size for legend scroll area
-        legend_scroll_area.setMinimumWidth(180)
-        legend_scroll_area.setMaximumWidth(220)
+        main_layout.addWidget(legend_scroll_area, 20)  # 20% of space
         
         # Enable auto-range on resize
         self.plot_view.enableAutoRange()
@@ -515,33 +524,31 @@ class PlotWidget(QWidget):
         # Build the custom legend in the sidebar widget
         for category in ["Simulated", "Observed"]:
             if legend_entries[category]:
-                # Add category header
-                category_label = QLabel(f"<b>--- {category} ---</b>")
-                category_label.setStyleSheet("margin-top: 10px;")
+                category_label = QLabel(f"<b>{category}</b>")
+                category_label.setStyleSheet("padding: 2px;")
                 self.legend_layout.addWidget(category_label)
                 
-                # Add variables and treatments under each category
                 for var_name, treatments in sorted(legend_entries[category].items()):
-                    # Add variable name as subheader
-                    var_label = QLabel(f"<b>{var_name}</b>")
-                    var_label.setStyleSheet("margin-top: 5px; margin-left: 10px;")
+                    var_label = QLabel(f"{var_name}")
+                    var_label.setStyleSheet("padding-left: 5px;")
                     self.legend_layout.addWidget(var_label)
                     
-                    # Add treatments under this variable
                     for treatment in sorted(treatments, key=lambda x: x["trt"]):
                         trt_name = treatment["name"]
+                        entry_widget = QWidget()
+                        entry_layout = QHBoxLayout()
+                        entry_layout.setSpacing(2)  # Minimal spacing
+                        entry_layout.setContentsMargins(10, 0, 0, 0)  # Left padding only
+                        entry_widget.setLayout(entry_layout)
                         
-                        # Create a custom legend entry using PyQtGraph's sample plotter
                         sample_widget = pg.PlotWidget(background=None)
-                        sample_widget.setFixedHeight(20)
-                        sample_widget.setFixedWidth(50)
+                        sample_widget.setFixedSize(30, 15)  # Smaller sample size
                         sample_widget.hideAxis('left')
                         sample_widget.hideAxis('bottom')
                         sample_widget.setMouseEnabled(False, False)
                         
-                        # Add the same kind of plot item
+                        # Add plot sample (same as before)
                         if "symbol" in treatment and treatment["symbol"] is not None:
-                            # For scatter points
                             sample = pg.ScatterPlotItem(
                                 x=[0.5], y=[0.5],
                                 symbol=treatment["symbol"],
@@ -549,31 +556,23 @@ class PlotWidget(QWidget):
                                 pen=treatment["pen"],
                                 brush=treatment["brush"]
                             )
-                            sample_widget.addItem(sample)
                         else:
-                            # For line plots
                             sample = pg.PlotDataItem(
                                 x=[0, 1], y=[0.5, 0.5],
                                 pen=treatment["pen"]
                             )
-                            sample_widget.addItem(sample)
+                        sample_widget.addItem(sample)
                         
-                        # Entry layout with sample and label
-                        entry_widget = QWidget()
-                        entry_layout = QHBoxLayout()
-                        entry_layout.setContentsMargins(15, 0, 0, 0)
-                        entry_widget.setLayout(entry_layout)
-                        
-                        # Add sample and label to entry
                         entry_layout.addWidget(sample_widget)
-                        entry_layout.addWidget(QLabel(trt_name))
+                        label = QLabel(trt_name)
+                        label.setStyleSheet("padding: 0px;")
+                        entry_layout.addWidget(label)
                         entry_layout.addStretch(1)
                         
-                        # Add entry to legend
                         self.legend_layout.addWidget(entry_widget)
+
+       
         
-        # Add stretch to push legend entries to the top
-        self.legend_layout.addStretch(1)
         
         # Set nice axis formatting for dates
         if x_var == "DATE":
