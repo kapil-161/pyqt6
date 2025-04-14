@@ -388,23 +388,68 @@ def improved_smart_scale(
 
 # Add a background caching utility
 class DataCacheManager:
-    """Utility class for managing data caching."""
+    """Utility class for managing data caching with memory management."""
     
     def __init__(self):
+        self.data_cache = {}  # Cache for processed DataFrames
         self.variable_info = {}
         self.data_cde_cache = {}
         self.path_cache = {}
+        self.cache_size_limit = 1024 * 1024 * 512  # 512MB default cache limit
     
-    def clear_cache(self):
-        """Clear all cached data."""
-        self.variable_info.clear()
-        self.data_cde_cache.clear()
-        self.path_cache.clear()
-        
-        # Also clear function caches
-        get_variable_info.cache_clear()
-        parse_data_cde.cache_clear()
-        unified_date_convert.cache_clear()
+    def cache_data(self, key: str, data: pd.DataFrame, metadata: dict = None):
+        """Cache DataFrame with memory management."""
+        try:
+            data_size = data.memory_usage(deep=True).sum()
+            
+            # Clear old entries if cache would exceed limit
+            while (sum(df.memory_usage(deep=True).sum() 
+                      for df in self.data_cache.values()) + data_size > self.cache_size_limit 
+                   and self.data_cache):
+                self.data_cache.pop(next(iter(self.data_cache)))
+            
+            # Store data with optimization
+            self.data_cache[key] = data.copy()
+            if metadata:
+                self.path_cache[key] = metadata
+                
+        except Exception as e:
+            logger.error(f"Error caching data: {str(e)}")
+    
+    def get_cached_data(self, key: str) -> pd.DataFrame:
+        """Retrieve cached data if available."""
+        return self.data_cache.get(key)
+    
+    def clear_cache(self, key: str = None):
+        """Clear specific or all cached data."""
+        if key:
+            self.data_cache.pop(key, None)
+            self.path_cache.pop(key, None)
+        else:
+            self.data_cache.clear()
+            self.variable_info.clear()
+            self.data_cde_cache.clear()
+            self.path_cache.clear()
+            get_variable_info.cache_clear()
+            parse_data_cde.cache_clear()
+            unified_date_convert.cache_clear()
+    
+    def get_cache_size(self) -> int:
+        """Get current cache size in bytes."""
+        return sum(df.memory_usage(deep=True).sum() for df in self.data_cache.values())
+    
+    def optimize_memory(self, threshold_mb: int = 400):
+        """Optimize memory usage if it exceeds threshold."""
+        current_size = self.get_cache_size()
+        if current_size > threshold_mb * 1024 * 1024:
+            # Remove oldest items until under threshold
+            while (self.get_cache_size() > threshold_mb * 1024 * 1024 
+                   and self.data_cache):
+                self.data_cache.pop(next(iter(self.data_cache)))
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
 
 # Create a singleton instance
 cache_manager = DataCacheManager()
