@@ -136,7 +136,7 @@ class MainWindow(QMainWindow):
                 background-color: #F0F5F9;
                 border: 1px solid #C9D6DF;
                 border-radius: 5px;
-                margin-top: 10px;
+                margin-top: 5px;
             }
             QGroupBox::title {
                 subcontrol-origin: margin;
@@ -193,7 +193,7 @@ class MainWindow(QMainWindow):
         self.sidebar = QWidget()
         sidebar_layout = QVBoxLayout()
         self.sidebar.setLayout(sidebar_layout)
-        sidebar_layout.setContentsMargins(10, 10, 10, 10)
+        sidebar_layout.setContentsMargins(10, 0, 10, 0)
         scroll_area.setWidget(self.sidebar)
         
         sidebar_container.setMinimumWidth(220)
@@ -302,13 +302,35 @@ class MainWindow(QMainWindow):
         group = QGroupBox("Select Treatments")
         group_layout = QVBoxLayout()
         group.setLayout(group_layout)
+        
+        # Add a checkbox for select all/deselect all
+        self.select_all_checkbox = QCheckBox("Select All/Deselect All")
+        self.select_all_checkbox.setChecked(True)  # Default to checked
+        self.select_all_checkbox.toggled.connect(self.on_select_all_treatments_toggled)
+        group_layout.addWidget(self.select_all_checkbox)
+        
         self.treatment_list = QListWidget()
         self.treatment_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.treatment_list.setToolTip("Select one or more treatments")
         self.treatment_list.setMinimumHeight(70)
         self.treatment_list.setMaximumHeight(90)
+        self.treatment_list.itemSelectionChanged.connect(self.on_treatment_selection_changed)
         group_layout.addWidget(self.treatment_list)
         layout.addWidget(group)
+
+    def on_select_all_treatments_toggled(self, checked):
+        # Temporarily disconnect to avoid recursive calls
+        self.treatment_list.itemSelectionChanged.disconnect(self.on_treatment_selection_changed)
+        
+        # Select or deselect all items
+        for i in range(self.treatment_list.count()):
+            self.treatment_list.item(i).setSelected(checked)
+        
+        # Reconnect signal
+        self.treatment_list.itemSelectionChanged.connect(self.on_treatment_selection_changed)
+        
+        # Update selected treatments list
+        self.on_treatment_selection_changed()
     
     def setup_run_controls(self, layout):
         self.run_button = QPushButton("Run Treatment")
@@ -334,7 +356,7 @@ class MainWindow(QMainWindow):
         self.out_file_selector = QListWidget()
         self.out_file_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.out_file_selector.setMinimumHeight(60)
-        self.out_file_selector.setMaximumHeight(80)
+        #self.out_file_selector.setMaximumHeight(80)
         file_layout.addWidget(self.out_file_selector)
         layout.addWidget(file_group)
         self.time_series_group = QGroupBox("Time Series Variables")
@@ -353,7 +375,7 @@ class MainWindow(QMainWindow):
         
         self.y_var_selector = QListWidget()
         self.y_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        self.y_var_selector.setMinimumHeight(120)
+        self.y_var_selector.setMinimumHeight(180)
         ts_layout.addWidget(self.y_var_selector)
         layout.addWidget(self.time_series_group)
         self.scatter_group = QGroupBox("Scatter Plot Variables")
@@ -367,7 +389,7 @@ class MainWindow(QMainWindow):
         scatter_layout.addWidget(QLabel("Variables to Compare"))
         self.scatter_var_selector = QListWidget()
         self.scatter_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        self.scatter_var_selector.setMinimumHeight(120)
+        self.scatter_var_selector.setMinimumHeight(180)
         scatter_layout.addWidget(self.scatter_var_selector)
         scatter_layout.addWidget(QLabel("X Variable"))
         self.scatter_x_var_selector = QComboBox()
@@ -375,7 +397,7 @@ class MainWindow(QMainWindow):
         scatter_layout.addWidget(QLabel("Y Variables"))
         self.scatter_y_var_selector = QListWidget()
         self.scatter_y_var_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
-        self.scatter_y_var_selector.setMinimumHeight(120)
+        self.scatter_y_var_selector.setMinimumHeight(180)
         scatter_layout.addWidget(self.scatter_y_var_selector)
         layout.addWidget(self.scatter_group)
         self.refresh_button = QPushButton("Refresh Plot")
@@ -452,7 +474,7 @@ class MainWindow(QMainWindow):
             for folder in folders:
                 self.folder_selector.addItem(folder)
             if folders:
-                self.folder_selector.setCurrentIndex(0)
+                self.folder_selector.setCurrentIndex(48)
         except Exception as e:
             logging.error(f"Error loading folders: {e}")
             self.show_error("Error loading crop folders", str(e))
@@ -484,8 +506,17 @@ class MainWindow(QMainWindow):
                     item = QListWidgetItem(f"{row.TR} - {row.TNAME}")
                     item.setData(Qt.ItemDataRole.UserRole, row.TR)
                     self.treatment_list.addItem(item)
+                
+                # Disconnect to avoid triggering the signal multiple times
+                if hasattr(self, 'select_all_checkbox'):
+                    self.select_all_checkbox.toggled.disconnect(self.on_select_all_treatments_toggled)
+                    self.select_all_checkbox.setChecked(True)
+                    self.select_all_checkbox.toggled.connect(self.on_select_all_treatments_toggled)
+                
+                # Select all items by default
                 for i in range(self.treatment_list.count()):
                     self.treatment_list.item(i).setSelected(True)
+                
         except Exception as e:
             logging.error(f"Error loading treatments: {e}")
             self.show_error("Error loading treatments", str(e))
@@ -755,7 +786,15 @@ class MainWindow(QMainWindow):
         for item in self.treatment_list.selectedItems():
             trt_str = item.text().split(' - ')[0]
             self.selected_treatments.append(trt_str)
+        
+        # Update select all checkbox without triggering its signal
+        if hasattr(self, 'select_all_checkbox'):
+            self.select_all_checkbox.blockSignals(True)
+            self.select_all_checkbox.setChecked(len(self.selected_treatments) == self.treatment_list.count())
+            self.select_all_checkbox.blockSignals(False)
+        
         self.update_ui_state()
+        self.move_selected_items_to_top(self.treatment_list)
         
     
     @pyqtSlot()
@@ -1036,9 +1075,12 @@ class MainWindow(QMainWindow):
         try:
             if not self.execution_status.get("completed", False):
                 return
+                
+            # Get simulation data
             selected_files = [item.text() for item in self.out_file_selector.selectedItems()]
             if not selected_files:
                 return
+                
             all_data = []
             for out_file in selected_files:
                 crop_details = get_crop_details()
@@ -1054,6 +1096,7 @@ class MainWindow(QMainWindow):
                 file_data = read_file(file_path)
                 if file_data is not None and not file_data.empty:
                     file_data['FILE'] = out_file
+                    file_data['source'] = 'sim'  # Add source column
                     # Ensure TRT column exists - might be TRNO or another name
                     if 'TRT' not in file_data.columns:
                         if 'TRNO' in file_data.columns:
@@ -1068,6 +1111,32 @@ class MainWindow(QMainWindow):
                     # Ensure TRT is treated as string for filtering
                     file_data['TRT'] = file_data['TRT'].astype(str)
                     all_data.append(file_data)
+                    
+            # Get observed data
+            if self.selected_experiment:
+                x_var = self.x_var_selector.currentData() or self.x_var_selector.currentText()
+                y_vars = []
+                for item in self.y_var_selector.selectedItems():
+                    var_code = item.data(Qt.ItemDataRole.UserRole)
+                    if var_code:
+                        y_vars.append(var_code)
+                    else:
+                        y_vars.append(item.text())
+                        
+                obs_data = read_observed_data(
+                    self.selected_folder,
+                    self.selected_experiment,
+                    x_var,
+                    y_vars
+                )
+                
+                if obs_data is not None and not obs_data.empty:
+                    obs_data['source'] = 'obs'  # Add source column
+                    if 'TRNO' in obs_data.columns:
+                        obs_data['TRNO'] = obs_data['TRNO'].astype(str)
+                        obs_data = obs_data.rename(columns={'TRNO': 'TRT'})
+                    all_data.append(obs_data)
+            
             if all_data:
                 combined_data = pd.concat(all_data, ignore_index=True)
                 # Check if any selected treatments exist in the data
@@ -1077,7 +1146,13 @@ class MainWindow(QMainWindow):
                     # If no selected treatments match, show all data
                     filtered_data = combined_data
                     self.show_warning("Selected treatments not found in data")
-                self.data_table.set_data(filtered_data)
+                
+                # Split into simulated and observed data
+                sim_data = filtered_data[filtered_data['source'] == 'sim'].copy() if 'source' in filtered_data.columns else filtered_data.copy()
+                obs_data = filtered_data[filtered_data['source'] == 'obs'].copy() if 'source' in filtered_data.columns else None
+                
+                # Update the data table with both simulated and observed data
+                self.data_table.set_data(sim_data=sim_data, obs_data=obs_data)
             else:
                 self.data_table.clear()
         except Exception as e:

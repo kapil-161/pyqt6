@@ -1,6 +1,7 @@
 import sys
 import os
-
+import pandas as pd
+import numpy as np
 # Add project root to Python path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_dir)
@@ -33,8 +34,15 @@ def standardize_dtypes(df: DataFrame) -> DataFrame:
     if df is None or df.empty:
         return df
     
-    # Drop all-NaN columns efficiently
-    df = df.loc[:, df.notna().any()]
+    # Drop all-NaN columns efficiently using boolean indexing
+    non_empty_cols = df.notna().any()
+    df = df.loc[:, non_empty_cols]
+    
+    # Drop columns that contain only empty strings or spaces
+    string_cols = df.select_dtypes(include=['object']).columns
+    if len(string_cols) > 0:
+        non_empty_string_cols = df[string_cols].apply(lambda x: x.str.strip().astype(bool).any())
+        df = df.loc[:, ~df.columns.isin(string_cols) | non_empty_string_cols]
     
     # Define column groups for efficient bulk processing
     timestamp_cols = df.columns.intersection({"YEAR", "DOY", "DATE"})
@@ -72,12 +80,7 @@ def standardize_dtypes(df: DataFrame) -> DataFrame:
         
         # Process each valid numeric column
         for col in valid_numeric_cols:
-            # Check if all non-NaN values are integers
-            values = numeric_df[col].dropna()
-            if not values.empty and values.apply(lambda x: float(x).is_integer()).all():
-                df[col] = numeric_df[col].astype("Int64")  # Nullable integer
-            else:
-                df[col] = numeric_df[col].astype("float64")
+            df[col] = numeric_df[col]
     
     return df
 
@@ -333,17 +336,23 @@ def get_all_evaluate_variables(data: DataFrame) -> List[Tuple[str, str]]:
     return sorted(variables)
 
 def improved_smart_scale(
-    data, variables, target_min=1000, target_max=10000, scaling_factors=None
+    data, variables, target_min=None, target_max=None, scaling_factors=None
 ):
     """Scale data columns to a target range for visualization.
-    Optimized with vectorized calculations."""
+    Optimized with vectorized calculations. Skips scaling if only one variable is provided."""
     scaled_data = {}
     
     # Filter to variables that exist in data
     available_vars = [var for var in variables if var in data.columns]
     
+    # If only one variable is being processed, return original data
+    if len(available_vars) == 1:
+        var = available_vars[0]
+        scaled_data[var] = data[var].copy()
+        return scaled_data
+    
     # Pre-convert to numeric where possible
-    numeric_data = {var: to_numeric(data[var], errors="coerce") 
+    numeric_data = {var: pd.to_numeric(data[var], errors="coerce") 
                    for var in available_vars}
     
     for var in available_vars:
@@ -357,13 +366,13 @@ def improved_smart_scale(
             scale_factor, offset = scaling_factors[var]
         else:
             # Calculate scaling factors
-            var_min, var_max = min(values), max(values)
+            var_min, var_max = np.min(values), np.max(values)
             
             # Handle constant values
-            if isclose(var_min, var_max):
+            if np.isclose(var_min, var_max):
                 midpoint = (target_max + target_min) / 2
-                scaled_data[var] = Series(
-                    full(len(data[var]), midpoint), 
+                scaled_data[var] = pd.Series(
+                    np.full(len(data[var]), midpoint), 
                     index=data[var].index
                 )
                 continue

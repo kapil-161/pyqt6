@@ -20,13 +20,11 @@ FALLBACK_ENCODING = 'latin-1'
 # Missing values for DSSAT files
 MISSING_VALUES = {-99, -99.0, -99.9, -99.99, -99., '-99', '-99.0', '-99.9'}
 
-# UI Constants
-DASH_PORT = 8050
-DASH_HOST = "127.0.0.1"
+
 
 # Plot styling
-LINE_STYLES = ["solid", "dash", "dot", "dashdot"]
-line_styles = ["solid", "dash", "dot", "dashdot"]
+LINE_STYLES = ["solid", "dash", "dot"]
+line_styles = ["solid", "dash", "dot"]
 MARKER_SYMBOLS = ['o', 's', 'd', 't', 'p', 'h', '+', 'x', 'star']
 PLOT_COLORS = [
     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',

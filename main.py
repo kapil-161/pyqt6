@@ -31,7 +31,7 @@ WINDOW_CONFIG = {
     'width': 1400,
     'height': 800,
     'min_width': 1000,
-    'min_height': 600
+    'min_height': 700
 }
 
 # Apply startup optimizations before creating any Qt objects

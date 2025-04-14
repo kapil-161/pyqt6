@@ -196,6 +196,9 @@ class PlotWidget(QWidget):
                 )
             return df
 
+        # Initialize scaling factors
+        sim_scaling_factors = {}
+        
         # Process simulation data in batches
         sim_data_list = []
         for file_path in selected_out_files:
@@ -285,6 +288,7 @@ class PlotWidget(QWidget):
         # Combine all simulation data
         sim_data = pd.concat(all_data, ignore_index=True)
         missing_values = {-99, -99.0, -99.9, -99.99}
+        MISSING_VALUES = {-99, -99.0, -99.9, -99.99, -99., '-99', '-99.0', '-99.9'}
         
         # Read observed data
         obs_data = None
@@ -293,6 +297,7 @@ class PlotWidget(QWidget):
                 selected_folder, selected_experiment, x_var, y_vars
             )
             if obs_data is not None and not obs_data.empty:
+                logger.info(f"Loaded observed data with shape: {obs_data.shape}")
                 obs_data["source"] = "obs"
                 obs_data = handle_missing_xvar(obs_data, x_var, sim_data)
                 
@@ -309,26 +314,42 @@ class PlotWidget(QWidget):
                             obs_data.loc[
                                 obs_data[var].isin(missing_values), var
                             ] = np.nan
+                    
+                    # Store the original data before scaling
+                    self.obs_data = obs_data.copy()
         
         # Scale data for visualization
-        sim_scaling_factors = {}
-        for var in y_vars:
-            if var in sim_data.columns:
-                sim_values = (
-                    pd.to_numeric(sim_data[var], errors="coerce")
-                    .dropna()
-                    .values
-                )
-                if len(sim_values) > 0:
-                    var_min, var_max = np.min(sim_values), np.max(sim_values)
-
-                    if np.isclose(var_min, var_max):
-                        midpoint = (10000 + 1000) / 2
-                        sim_scaling_factors[var] = (1, midpoint)
-                    else:
-                        scale_factor = (10000 - 1000) / (var_max - var_min)
-                        offset = 1000 - var_min * scale_factor
-                        sim_scaling_factors[var] = (scale_factor, offset)
+        # Check if there's more than one variable before calculating scaling factors
+        if len(y_vars) <= 1:
+            sim_scaling_factors = {}  # Empty dict, no scaling will be applied
+        else:
+            # First pass: determine magnitude range
+            magnitudes = {}
+            for var in y_vars:
+                if var in sim_data.columns:
+                    sim_values = (
+                        pd.to_numeric(sim_data[var], errors="coerce")
+                        .dropna()
+                        .values
+                    )
+                    if len(sim_values) > 0 and not np.isclose(np.min(sim_values), np.max(sim_values)):
+                        # Get average magnitude of the values
+                        avg_value = np.mean(np.abs(sim_values))
+                        if avg_value > 0:
+                            magnitudes[var] = np.floor(np.log10(avg_value))
+            
+            # Skip if less than 2 valid variables
+            if len(magnitudes) >= 2:
+                # Find reference magnitude (highest one)
+                reference_magnitude = max(magnitudes.values())
+                
+                # Calculate scaling factors based on powers of 10
+                for var, magnitude in magnitudes.items():
+                    # Calculate power of 10 difference
+                    power_diff = reference_magnitude - magnitude
+                    scale_factor = 10 ** power_diff
+                    offset = 0  # No offset needed for power scaling
+                    sim_scaling_factors[var] = (scale_factor, offset)
         
         # Store scaling factors
         self.scaling_factors = sim_scaling_factors
@@ -360,7 +381,7 @@ class PlotWidget(QWidget):
             var_label, _ = get_variable_info(var)
             display_name = var_label or var
             scaling_parts.append(
-                f"{display_name} = {round(scale_factor, 6):.6f} * {display_name} + {round(offset, 2):.2f}"
+                f"{display_name} = {round(scale_factor, 2):.2f} * {display_name} "
             )
         
         # Always use line breaks between variables
@@ -411,6 +432,9 @@ class PlotWidget(QWidget):
                 source_type = dataset["source"].iloc[0]
                 category = "Simulated" if source_type == "sim" else "Observed"
                 
+                if source_type == "obs":  # Add this line to print observed data
+                    print("Observed data being plotted:", dataset)
+                    
                 # Process each variable
                 for var_idx, var in enumerate(y_vars):
                     # Initialize storage for this variable if not already created

@@ -8000,10 +8000,7 @@ imported by:
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
  &#8226;   <a href="#packaging._parser">packaging._parser</a>
  &#8226;   <a href="#packaging._tokenizer">packaging._tokenizer</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#packaging.licenses._spdx">packaging.licenses._spdx</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
@@ -8340,6 +8337,17 @@ imported by:
  &#8226;   <a href="#traitlets.utils.importstring">traitlets.utils.importstring</a>
  &#8226;   <a href="#traitlets.utils.sentinel">traitlets.utils.sentinel</a>
  &#8226;   <a href="#traitlets.utils.warnings">traitlets.utils.warnings</a>
+
+  </div>
+
+</div>
+
+<div class="node">
+  <a name="__main__"></a>
+  <a target="code" href="" type="text/plain"><tt>__main__</tt></a>
+<span class="moduletype">ExcludedModule</span>  <div class="import">
+imported by:
+    <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -14556,7 +14564,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#email.parser">email.parser</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
 
   </div>
 
@@ -14607,7 +14614,6 @@ imports:
 imported by:
     <a href="#email">email</a>
  &#8226;   <a href="#email._policybase">email._policybase</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
 
   </div>
 
@@ -14680,7 +14686,6 @@ imported by:
  &#8226;   <a href="#http.client">http.client</a>
  &#8226;   <a href="#importlib.metadata._adapters">importlib.metadata._adapters</a>
  &#8226;   <a href="#importlib_metadata._adapters">importlib_metadata._adapters</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#pydoc">pydoc</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
  &#8226;   <a href="#setuptools._vendor.wheel.bdist_wheel">setuptools._vendor.wheel.bdist_wheel</a>
@@ -14707,7 +14712,6 @@ imports:
 imported by:
     <a href="#email">email</a>
  &#8226;   <a href="#http.client">http.client</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.pack">setuptools._vendor.wheel.cli.pack</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.tags">setuptools._vendor.wheel.cli.tags</a>
@@ -14736,7 +14740,6 @@ imports:
 imported by:
     <a href="#email.message">email.message</a>
  &#8226;   <a href="#importlib_metadata._adapters">importlib_metadata._adapters</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#setuptools._vendor.wheel.bdist_wheel">setuptools._vendor.wheel.bdist_wheel</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.pack">setuptools._vendor.wheel.cli.pack</a>
  &#8226;   <a href="#setuptools._vendor.wheel.cli.tags">setuptools._vendor.wheel.cli.tags</a>
@@ -33272,15 +33275,12 @@ imported by:
  &#8226;   <a href="#packaging._parser">packaging._parser</a>
  &#8226;   <a href="#packaging._structures">packaging._structures</a>
  &#8226;   <a href="#packaging._tokenizer">packaging._tokenizer</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#packaging.utils">packaging.utils</a>
  &#8226;   <a href="#packaging.version">packaging.version</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools._normalization">setuptools._normalization</a>
  &#8226;   <a href="#setuptools.command.bdist_wheel">setuptools.command.bdist_wheel</a>
  &#8226;   <a href="#setuptools.command.egg_info">setuptools.command.egg_info</a>
@@ -33307,7 +33307,6 @@ imports:
 imported by:
     <a href="#packaging._manylinux">packaging._manylinux</a>
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33337,7 +33336,6 @@ imports:
 imported by:
     <a href="#packaging">packaging</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33363,7 +33361,6 @@ imports:
 imported by:
     <a href="#packaging">packaging</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33385,7 +33382,6 @@ imports:
 imported by:
     <a href="#packaging.markers">packaging.markers</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33402,7 +33398,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#packaging.version">packaging.version</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33427,48 +33422,6 @@ imported by:
     <a href="#packaging._parser">packaging._parser</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="packaging.licenses"></a>
-  <a target="code" href="///C:/Users/kbhattarai1/AppData/Roaming/Python/Python313/site-packages/packaging/licenses/__init__.py" type="text/plain"><tt>packaging.licenses</tt></a>
-<span class="moduletype">Package</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#packaging">packaging</a>
- &#8226;   <a href="#packaging.licenses._spdx">packaging.licenses._spdx</a>
- &#8226;   <a href="#re">re</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#packaging.licenses._spdx">packaging.licenses._spdx</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
-
-  </div>
-
-</div>
-
-<div class="node">
-  <a name="packaging.licenses._spdx"></a>
-  <a target="code" href="///C:/Users/kbhattarai1/AppData/Roaming/Python/Python313/site-packages/packaging/licenses/_spdx.py" type="text/plain"><tt>packaging.licenses._spdx</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
 
   </div>
 
@@ -33505,36 +33458,6 @@ imported by:
 </div>
 
 <div class="node">
-  <a name="packaging.metadata"></a>
-  <a target="code" href="///C:/Users/kbhattarai1/AppData/Roaming/Python/Python313/site-packages/packaging/metadata.py" type="text/plain"><tt>packaging.metadata</tt></a>
-<span class="moduletype">SourceModule</span>  <div class="import">
-imports:
-    <a href="#__future__">__future__</a>
- &#8226;   <a href="#email.feedparser">email.feedparser</a>
- &#8226;   <a href="#email.header">email.header</a>
- &#8226;   <a href="#email.message">email.message</a>
- &#8226;   <a href="#email.parser">email.parser</a>
- &#8226;   <a href="#email.policy">email.policy</a>
- &#8226;   <a href="#packaging">packaging</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
- &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
- &#8226;   <a href="#packaging.utils">packaging.utils</a>
- &#8226;   <a href="#packaging.version">packaging.version</a>
- &#8226;   <a href="#pathlib">pathlib</a>
- &#8226;   <a href="#sys">sys</a>
- &#8226;   <a href="#typing">typing</a>
-
-  </div>
-  <div class="import">
-imported by:
-    <a href="#pkg_resources">pkg_resources</a>
-
-  </div>
-
-</div>
-
-<div class="node">
   <a name="packaging.requirements"></a>
   <a target="code" href="///C:/Users/kbhattarai1/AppData/Roaming/Python/Python313/site-packages/packaging/requirements.py" type="text/plain"><tt>packaging.requirements</tt></a>
 <span class="moduletype">SourceModule</span>  <div class="import">
@@ -33551,8 +33474,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#packaging.metadata">packaging.metadata</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
+    <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
  &#8226;   <a href="#setuptools._reqs">setuptools._reqs</a>
  &#8226;   <a href="#setuptools.command._requirestxt">setuptools.command._requirestxt</a>
@@ -33583,7 +33505,6 @@ imports:
 imported by:
     <a href="#packaging._tokenizer">packaging._tokenizer</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools._static">setuptools._static</a>
@@ -33616,7 +33537,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#packaging.utils">packaging.utils</a>
- &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools.command.bdist_wheel">setuptools.command.bdist_wheel</a>
  &#8226;   <a href="#setuptools.wheel">setuptools.wheel</a>
 
@@ -33641,7 +33561,6 @@ imports:
   <div class="import">
 imported by:
     <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
@@ -33668,8 +33587,7 @@ imports:
   </div>
   <div class="import">
 imported by:
-    <a href="#packaging.metadata">packaging.metadata</a>
- &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
+    <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#packaging.utils">packaging.utils</a>
  &#8226;   <a href="#pkg_resources">pkg_resources</a>
  &#8226;   <a href="#setuptools._core_metadata">setuptools._core_metadata</a>
@@ -46361,7 +46279,6 @@ imported by:
  &#8226;   <a href="#numpy.f2py.rules">numpy.f2py.rules</a>
  &#8226;   <a href="#numpy.testing._private.extbuild">numpy.testing._private.extbuild</a>
  &#8226;   <a href="#numpy.testing._private.utils">numpy.testing._private.utils</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#pandas._testing._io">pandas._testing._io</a>
  &#8226;   <a href="#pandas._testing.contexts">pandas._testing.contexts</a>
  &#8226;   <a href="#pandas.io.common">pandas.io.common</a>
@@ -46561,6 +46478,7 @@ imports:
     <a href="#'_typeshed.importlib'">'_typeshed.importlib'</a>
  &#8226;   <a href="#'collections.abc'">'collections.abc'</a>
  &#8226;   <a href="#__future__">__future__</a>
+ &#8226;   <a href="#__main__">__main__</a>
  &#8226;   <a href="#_imp">_imp</a>
  &#8226;   <a href="#_typeshed">_typeshed</a>
  &#8226;   <a href="#collections">collections</a>
@@ -46578,20 +46496,9 @@ imports:
  &#8226;   <a href="#operator">operator</a>
  &#8226;   <a href="#os">os</a>
  &#8226;   <a href="#os.path">os.path</a>
- &#8226;   <a href="#packaging">packaging</a>
- &#8226;   <a href="#packaging._elffile">packaging._elffile</a>
- &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
- &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
- &#8226;   <a href="#packaging._parser">packaging._parser</a>
- &#8226;   <a href="#packaging._structures">packaging._structures</a>
- &#8226;   <a href="#packaging._tokenizer">packaging._tokenizer</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#packaging.licenses._spdx">packaging.licenses._spdx</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
- &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#packaging.utils">packaging.utils</a>
  &#8226;   <a href="#packaging.version">packaging.version</a>
  &#8226;   <a href="#pkgutil">pkgutil</a>
@@ -53598,7 +53505,6 @@ imported by:
  &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
  &#8226;   <a href="#packaging._tokenizer">packaging._tokenizer</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#packaging.utils">packaging.utils</a>
@@ -58672,7 +58578,6 @@ imported by:
  &#8226;   <a href="#packaging._manylinux">packaging._manylinux</a>
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
  &#8226;   <a href="#pandas._config.display">pandas._config.display</a>
  &#8226;   <a href="#pandas._testing">pandas._testing</a>
@@ -59965,10 +59870,7 @@ imported by:
  &#8226;   <a href="#packaging._musllinux">packaging._musllinux</a>
  &#8226;   <a href="#packaging._parser">packaging._parser</a>
  &#8226;   <a href="#packaging._tokenizer">packaging._tokenizer</a>
- &#8226;   <a href="#packaging.licenses">packaging.licenses</a>
- &#8226;   <a href="#packaging.licenses._spdx">packaging.licenses._spdx</a>
  &#8226;   <a href="#packaging.markers">packaging.markers</a>
- &#8226;   <a href="#packaging.metadata">packaging.metadata</a>
  &#8226;   <a href="#packaging.requirements">packaging.requirements</a>
  &#8226;   <a href="#packaging.specifiers">packaging.specifiers</a>
  &#8226;   <a href="#packaging.tags">packaging.tags</a>
@@ -60392,8 +60294,8 @@ imported by:
 
 <div class="node">
   <a name="ui.widgets"></a>
-  <a target="code" href="-" type="text/plain"><tt>ui.widgets</tt></a>
-<span class="moduletype">NamespacePackage</span>  <div class="import">
+  <a target="code" href="///C:/Users/kbhattarai1/Desktop/pyqt6-original/ui/widgets/__init__.py" type="text/plain"><tt>ui.widgets</tt></a>
+<span class="moduletype">Package</span>  <div class="import">
 imports:
     <a href="#ui">ui</a>
 
