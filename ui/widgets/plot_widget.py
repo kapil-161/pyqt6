@@ -732,42 +732,149 @@ class PlotWidget(QWidget):
 
     @function_timer("data_processing")  
     def calculate_metrics(self, sim_data, obs_data, y_vars, selected_treatments, treatment_names=None):
-        """Calculate performance metrics with monitoring"""
-        timer_id = self.perf_monitor.start_timer("metrics", "calculate")
-        try:
-            metrics_data = []
-            for var in y_vars:
-                if var not in sim_data.columns or var not in obs_data.columns:
-                    continue
-                    
-                var_timer = self.perf_monitor.start_timer("metrics", f"var_{var}")
+        """
+        Calculate performance metrics and emit signal
+        
+        Args:
+            sim_data: Simulation data DataFrame
+            obs_data: Observed data DataFrame
+            y_vars: List of Y variables
+            selected_treatments: List of selected treatments
+            treatment_names: Optional dictionary mapping treatment numbers to names
+        """
+        logger.info(f"Starting metrics calculation for {len(y_vars)} variables and {len(selected_treatments)} treatments")
+        
+        if obs_data is None or obs_data.empty:
+            logger.warning("No observed data available for metrics calculation")
+            return
+            
+        metrics_data = []
+        
+        # For each treatment and variable, calculate metrics
+        for var in y_vars:
+            if var not in sim_data.columns or var not in obs_data.columns:
+                logger.warning(f"Variable {var} not found in both simulated and observed data")
+                continue
                 
-                for trt in selected_treatments:
-                    trt_timer = self.perf_monitor.start_timer("metrics", f"treatment_{trt}")
+            for trt in selected_treatments:
+                try:
+                    # Get data for this treatment
+                    sim_trt_data = sim_data[sim_data['TRT'] == trt]
+                    obs_trt_data = obs_data[obs_data['TRT'] == trt]
+                    
+                    if sim_trt_data.empty or obs_trt_data.empty:
+                        logger.info(f"No data for treatment {trt}, variable {var} in either sim or obs data")
+                        continue
+                        
+                    # Find common dates
+                    common_dates = set(sim_trt_data['DATE']) & set(obs_trt_data['DATE'])
+                    logger.info(f"Found {len(common_dates)} common dates for treatment {trt}, variable {var}")
+                    
+                    if not common_dates:
+                        logger.warning(f"No common dates found for treatment {trt}, variable {var}")
+                        continue
+                        
+                    # Filter to common dates
+                    sim_values = []
+                    obs_values = []
+                    
+                    for date in common_dates:
+                        try:
+                            # Try original columns first, fall back to regular columns
+                            if f"{var}_original" in sim_trt_data.columns:
+                                sim_val = sim_trt_data[sim_trt_data['DATE'] == date][f"{var}_original"].values
+                            else:
+                                sim_val = sim_trt_data[sim_trt_data['DATE'] == date][var].values
+                                
+                            if f"{var}_original" in obs_trt_data.columns:
+                                obs_val = obs_trt_data[obs_trt_data['DATE'] == date][f"{var}_original"].values
+                            else:
+                                obs_val = obs_trt_data[obs_trt_data['DATE'] == date][var].values
+                            
+                            if len(sim_val) > 0 and len(obs_val) > 0:
+                                # Skip NA/NaN values
+                                if pd.isna(sim_val[0]) or pd.isna(obs_val[0]):
+                                    continue
+                                    
+                                sim_values.append(float(sim_val[0]))
+                                obs_values.append(float(obs_val[0]))
+                        except Exception as e:
+                            logger.warning(f"Error processing date {date}: {e}")
+                            continue
+                    
+                    logger.info(f"Collected {len(sim_values)} valid data points for treatment {trt}, variable {var}")
+                    
+                    # Get treatment name if available
+                    trt_name = trt
+                    if treatment_names and trt in treatment_names:
+                        trt_name = treatment_names[trt]
+                    
+                    if len(sim_values) < 2 or len(obs_values) < 2:
+                        # Skip metric calculation if not enough valid data points
+                        logger.warning(f"Insufficient data points for treatment {trt}, variable {var}")
+                        
+                        # Get variable display name
+                        var_label, _ = get_variable_info(var)
+                        display_name = var_label or var
+                        
+                        metrics_data.append({
+                            "Variable": f"{display_name} - {trt_name}",
+                            "n": len(sim_values),
+                            "R²": 0.0,  # Not applicable for insufficient points
+                            "RMSE": 0.0,
+                            "d-stat": 0.0,
+                        })
+                        continue
+                    
+                    # Calculate metrics
+                    var_label, _ = get_variable_info(var)
+                    display_name = var_label or var
                     
                     try:
-                        sim_trt_data = sim_data[sim_data['TRT'] == trt]
-                        obs_trt_data = obs_data[obs_data['TRT'] == trt]
+                        # Use MetricsCalculator for consistency
+                        sim_vals = np.array(sim_values, dtype=float)
+                        obs_vals = np.array(obs_values, dtype=float)
                         
-                        if sim_trt_data.empty or obs_trt_data.empty:
-                            continue
+                        # Calculate R-squared
+                        r2 = MetricsCalculator.r_squared(sim_vals, obs_vals)
                         
-                        # Rest of the existing metrics calculation code...
-                        # ...existing code...
+                        # Calculate RMSE
+                        rmse = MetricsCalculator.rmse(obs_vals, sim_vals)
                         
-                    finally:
-                        self.perf_monitor.stop_timer(trt_timer)
+                        # Calculate d-stat
+                        d_stat_val = MetricsCalculator.d_stat(obs_vals, sim_vals)
                         
-                self.perf_monitor.stop_timer(var_timer)
-                
-            if metrics_data:
-                self.metrics_calculated.emit(metrics_data)
-                
-            self.perf_monitor.stop_timer(timer_id)
-            
-        except Exception as e:
-            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
-            raise
+                        # Add to metrics data
+                        metrics_data.append({
+                            "Variable": f"{display_name} - {trt_name}",
+                            "n": len(sim_values),
+                            "R²": round(r2, 3),
+                            "RMSE": round(rmse, 3),
+                            "d-stat": round(d_stat_val, 3),
+                        })
+                        
+                        logger.info(f"Calculated metrics for {display_name} - {trt_name}: R²={r2:.3f}, RMSE={rmse:.3f}, d-stat={d_stat_val:.3f}")
+                        
+                    except Exception as e:
+                        logger.error(f"Error calculating metrics: {e}", exc_info=True)
+                        
+                        metrics_data.append({
+                            "Variable": f"{display_name} - {trt_name}",
+                            "n": len(sim_values),
+                            "R²": 0.0,
+                            "RMSE": 0.0,
+                            "d-stat": 0.0,
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing treatment {trt} for variable {var}: {e}", exc_info=True)
+                    continue
+        
+        # Emit signal if we have metrics
+        if metrics_data:
+            logger.info(f"Emitting metrics_calculated signal with {len(metrics_data)} entries")
+            self.metrics_calculated.emit(metrics_data)
+        else:
+            logger.warning("No metrics were calculated, not emitting signal")
 
     @function_timer("visualization")
     def batch_render_dataset(self, data, var, x_var, color, style, symbol=None):
@@ -818,6 +925,20 @@ class PlotWidget(QWidget):
 
     def plot_dataset(self, data, source_type, x_var, y_vars, selected_treatments, treatment_names, line_styles, pen_width):
         """Helper method to plot a dataset efficiently"""
+        # Debug info
+        print(f"=== PLOT_DATASET CALLED ===")
+        print(f"Source type: {source_type}")
+        print(f"Data shape: {data.shape}")
+        print(f"X variable: {x_var}")
+        print(f"Y variables: {y_vars}")
+        print(f"Selected treatments: {selected_treatments}")
+        print(f"Treatments in data: {data['TRT'].unique().tolist()}")
+        
+        # Check for variable existence
+        for var in y_vars:
+            print(f"Variable {var} exists in data: {var in data.columns}")
+        
+        # Add the remaining method implementation...
         # Pre-filter and prepare data
         data = data[data['TRT'].isin(selected_treatments)].copy()
         
@@ -1099,3 +1220,4 @@ class PlotWidget(QWidget):
                 
         self.data_cache[cache_key] = processed
         return processed
+    
