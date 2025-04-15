@@ -45,7 +45,6 @@ class ScatterPlotWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setup_ui()
         
         # Store data and metrics
         self.evaluate_data = None
@@ -57,6 +56,24 @@ class ScatterPlotWidget(QWidget):
         
         # Treatment color mapping
         self.treatment_colors = {}
+        
+        # Performance optimizations
+        self.batch_size = 5000  # Increased batch size for better performance
+        self.enable_antialiasing = False
+        
+        # Configure plot defaults for maximum performance
+        pg.setConfigOptions(
+            antialias=False,
+            useOpenGL=True,
+            enableExperimental=True
+        )
+        
+        # Add caching
+        self._data_cache = {}
+        self._plot_cache = {}
+        self._metrics_cache = {}
+        
+        self.setup_ui()
     
     def setup_ui(self):
         """Setup the UI components"""
@@ -93,6 +110,33 @@ class ScatterPlotWidget(QWidget):
         # Reset treatment colors
         self.treatment_colors = {}
     
+    def batch_render_points(self, x_vals, y_vals, brush, symbol, name=None):
+        """Render points in batches for better performance"""
+        if len(x_vals) <= self.batch_size:
+            scatter = pg.ScatterPlotItem(
+                x=x_vals, y=y_vals,
+                pen=None, brush=brush,
+                symbol=symbol, size=10,
+                name=name
+            )
+            return scatter
+            
+        # Split into batches
+        batches = []
+        for i in range(0, len(x_vals), self.batch_size):
+            batch_x = x_vals[i:i + self.batch_size]
+            batch_y = y_vals[i:i + self.batch_size]
+            
+            scatter = pg.ScatterPlotItem(
+                x=batch_x, y=batch_y,
+                pen=None, brush=brush,
+                symbol=symbol, size=10,
+                name=None  # Only set name on first batch
+            )
+            batches.append(scatter)
+            
+        return batches
+
     def plot_sim_vs_meas(self, 
                     selected_folder: str,
                     selected_treatments: List[str],
@@ -487,17 +531,13 @@ class ScatterPlotWidget(QWidget):
                         pg_symbol = 'o'  # Default
                         
                     try:
-                        # Add scatter item - without legend entries (we use custom legend)
-                        scatter = pg.ScatterPlotItem(
-                            x=x_vals,
-                            y=y_vals,
-                            pen=None,
-                            brush=brush,
-                            symbol=pg_symbol,
-                            size=10,
-                            name=None  # No automatic legend
-                        )
-                        plot.addItem(scatter)
+                        # Batch render points
+                        scatter_items = self.batch_render_points(x_vals, y_vals, brush, pg_symbol)
+                        if isinstance(scatter_items, list):
+                            for item in scatter_items:
+                                plot.addItem(item)
+                        else:
+                            plot.addItem(scatter_items)
                         logger.info(f"Added scatter plot for treatment {trno}")
                     except Exception as e:
                         logger.error(f"Error adding scatter plot: {e}", exc_info=True)
@@ -513,215 +553,178 @@ class ScatterPlotWidget(QWidget):
             logger.info(f"Emitting metrics for {len(self.metrics_data)} variables")
             self.metrics_calculated.emit(self.metrics_data)
     
-    def plot_custom_scatter(self,
-                           selected_folder: str,
-                           selected_treatments: List[str],
-                           x_var: str,
-                           y_vars: List[str]):
-        """
-        Create custom X-Y scatter plots
-        
-        Args:
-            selected_folder: Selected crop folder
-            selected_treatments: List of selected treatments
-            x_var: X-axis variable
-            y_vars: List of Y-axis variables
-        """
-        logger.info(f"Plotting custom scatter with folder: {selected_folder}")
-        logger.info(f"X var: {x_var}, Y vars: {y_vars}")
-        
-        # Read EVALUATE.OUT data
-        self.evaluate_data = read_evaluate_file(selected_folder)
+    def plot_custom_scatter(self, selected_folder, selected_treatments, x_var, y_vars):
+        """Create custom X-Y scatter plots with optimized performance"""
+        # Read data just once
         if self.evaluate_data is None or self.evaluate_data.empty:
-            logger.warning("No evaluate data available")
-            return
-        
-        logger.info(f"Evaluate data loaded with columns: {self.evaluate_data.columns.tolist()}")
-        
-        # Clear metrics
-        self.metrics_data = []
-        
-        # Clear existing plots
+            self.evaluate_data = read_evaluate_file(selected_folder)
+            if self.evaluate_data is None:
+                return
+                
+        # Clear and create optimized plot
         self.clear_plots()
-        
-        # Add a single plot for all y-vars
         plot = self.add_plot_widget(0, 0)
+        plot.setAntialiasing(self.enable_antialiasing)
+        plot.setClipToView(True)
+        plot.setDownsampling(auto=True, mode='peak')
+        plot.useOpenGL(True)
         
         # Get variable names
         x_label, _ = get_variable_info(x_var)
         x_display = x_label or x_var
         
-        # Set labels
         plot.setTitle(f"Variables vs {x_display}")
         plot.setLabel('bottom', x_display)
         plot.setLabel('left', 'Values')
         
-        # Create legend
-        legend = plot.addLegend(offset=(70, 30))
+        # Vectorized data preparation
+        base_mask = self.evaluate_data['TRNO'].astype(str).isin(selected_treatments)
         
-        # Check if x_var exists in data
-        if x_var not in self.evaluate_data.columns:
-            logger.error(f"X variable {x_var} not in evaluate data")
-            return
-        
-        # Map treatments to colors for consistency
-        self.treatment_colors = {}
-        
-        # First, find all treatments across all y variables
-        all_treatments = set()
         for y_var in y_vars:
-            if y_var in self.evaluate_data.columns:
-                mask = self.evaluate_data[[x_var, y_var, 'TRNO']].notna().all(axis=1)
-                valid_data = self.evaluate_data[mask]
-                for trno in valid_data['TRNO'].unique():
-                    all_treatments.add(str(trno))
-                    
-        # If there are selected treatments, filter to just those
-        if selected_treatments:
-            all_treatments = [t for t in all_treatments if t in selected_treatments]
-            
-        # Assign colors to treatments
-        for j, trno in enumerate(sorted(all_treatments)):
-            color_idx = j % len(self.colors)
-            self.treatment_colors[trno] = color_idx
-        
-        # Add a scatter plot for each y variable and treatment
-        for y_idx, y_var in enumerate(y_vars):
-            # Check if y_var exists in data
             if y_var not in self.evaluate_data.columns:
-                logger.error(f"Y variable {y_var} not in evaluate data")
                 continue
                 
-            # Get variable name
             y_label, _ = get_variable_info(y_var)
             y_display = y_label or y_var
             
-            try:
-                # Filter out NaN values
-                valid_mask = self.evaluate_data[[x_var, y_var, 'TRNO']].notna().all(axis=1)
-                valid_data = self.evaluate_data[valid_mask].copy()
+            # Efficient filtering
+            var_mask = base_mask & self.evaluate_data[[x_var, y_var]].notna().all(axis=1)
+            valid_data = self.evaluate_data[var_mask].copy()
+            
+            if valid_data.empty:
+                continue
                 
-                # Convert to numeric to ensure proper plotting
-                valid_data[x_var] = pd.to_numeric(valid_data[x_var], errors='coerce')
-                valid_data[y_var] = pd.to_numeric(valid_data[y_var], errors='coerce')
+            # Calculate metrics using numpy operations
+            x_values = valid_data[x_var].to_numpy()
+            y_values = valid_data[y_var].to_numpy()
+            
+            if len(x_values) >= 2:
+                x_mean = np.mean(x_values)
+                y_mean = np.mean(y_values)
                 
-                logger.info(f"Valid data points for {y_display}: {len(valid_data)}")
+                # Vectorized calculations
+                numerator = np.sum((x_values - x_mean) * (y_values - y_mean))
+                denom1 = np.sum((x_values - x_mean)**2)
+                denom2 = np.sum((y_values - y_mean)**2)
                 
-                if valid_data.empty:
-                    logger.warning(f"No valid data for {y_var}")
+                r2 = (numerator / np.sqrt(denom1 * denom2))**2 if denom1 > 0 and denom2 > 0 else 0.0
+                rmse = np.sqrt(np.mean((y_values - x_values)**2))
+                
+                self.metrics_data.append({
+                    "Variable": f"{y_display} vs {x_display}",
+                    "n": len(x_values),
+                    "R²": round(r2, 3),
+                    "RMSE": round(rmse, 3),
+                    "d-stat": round(MetricsCalculator.d_stat(y_values, x_values) or 0.0, 3)
+                })
+            
+            # Plot for each treatment in batches
+            for trno in valid_data['TRNO'].unique():
+                if str(trno) not in selected_treatments:
                     continue
+                    
+                trno_data = valid_data[valid_data['TRNO'] == trno]
                 
-                # Calculate statistics for all data points combined
-                try:
-                    x_values = valid_data[x_var].to_numpy()
-                    y_values = valid_data[y_var].to_numpy()
-                    
-                    if len(x_values) >= 2 and len(y_values) >= 2:
-                        # Calculate R-squared manually to avoid issues
-                        x_mean = np.mean(x_values)
-                        y_mean = np.mean(y_values)
-                        
-                        numerator = np.sum((x_values - x_mean) * (y_values - y_mean))
-                        denom1 = np.sum((x_values - x_mean)**2)
-                        denom2 = np.sum((y_values - y_mean)**2)
-                        
-                        if denom1 > 0 and denom2 > 0:
-                            denominator = np.sqrt(denom1 * denom2)
-                            r = numerator / denominator
-                            r2 = r**2
-                        else:
-                            r2 = 0.0
-                            
-                        # Calculate RMSE
-                        rmse = np.sqrt(np.mean((y_values - x_values)**2))
-                        
-                        # Calculate d-stat
-                        try:
-                            d_stat = MetricsCalculator.d_stat(y_values, x_values)
-                            if d_stat is None:
-                                d_stat = 0.0
-                        except Exception as e:
-                            logger.error(f"Error calculating d-stat: {e}")
-                            d_stat = 0.0
-                        
-                        logger.info(f"Metrics for {y_display}: R²={r2:.3f}, RMSE={rmse:.3f}, d-stat={d_stat:.3f}")
-                        
-                        # Add to metrics data
-                        self.metrics_data.append({
-                            "Variable": f"{y_display} vs {x_display}",
-                            "n": len(x_values),
-                            "R²": round(r2, 3),
-                            "RMSE": round(rmse, 3),
-                            "d-stat": round(d_stat, 3),
-                        })
-                except Exception as e:
-                    logger.error(f"Error calculating statistics for {y_var}: {e}", exc_info=True)
+                # Get consistent plotting parameters
+                color_idx = self.treatment_colors.get(str(trno), hash(str(trno)) % len(self.colors))
+                symbol_idx = hash(str(trno)) % len(self.symbols)
+                brush = pg.mkBrush(self.colors[color_idx])
                 
-                # Plot for each treatment
-                unique_treatments = sorted(valid_data['TRNO'].unique())
-                logger.info(f"Found treatments for {y_display}: {unique_treatments}")
+                # Convert symbol
+                symbol = self.symbols[symbol_idx]
+                pg_symbol = {'circle': 'o', 'square': 's', 'diamond': 'd', 
+                           'triangle-up': 't', 'star': 'star'}.get(symbol, 'o')
                 
-                for trt_idx, trno in enumerate(unique_treatments):
-                    # Check if treatment is in selected treatments
-                    str_trno = str(trno)
-                    if selected_treatments and str_trno not in selected_treatments:
-                        logger.info(f"Skipping treatment {trno} - not in selected treatments")
-                        continue
-                        
-                    trno_data = valid_data[valid_data['TRNO'] == trno]
-                    logger.info(f"Treatment {trno} data for {y_display}: {len(trno_data)} points")
+                x_vals = trno_data[x_var].values
+                y_vals = trno_data[y_var].values
+                
+                if len(x_vals) > 0:
+                    name = f'{y_display} - Treatment {trno}'
+                    scatter_items = self.batch_render_points(x_vals, y_vals, brush, pg_symbol, name)
                     
-                    # Use consistent color for treatment
-                    color_idx = self.treatment_colors.get(str_trno, trt_idx % len(self.colors))
-                    symbol_idx = trt_idx % len(self.symbols)
-                    
-                    brush = pg.mkBrush(self.colors[color_idx])
-                    
-                    # Make sure we have points to plot
-                    x_vals = trno_data[x_var].values
-                    y_vals = trno_data[y_var].values
-                    
-                    if len(x_vals) == 0 or len(y_vals) == 0:
-                        logger.warning(f"No points to plot for {y_display} - treatment {trno}")
-                        continue
-                    
-                    # Convert symbols to PyQtGraph format
-                    symbol = self.symbols[symbol_idx]
-                    if symbol == 'circle':
-                        pg_symbol = 'o'
-                    elif symbol == 'square':
-                        pg_symbol = 's'
-                    elif symbol == 'diamond':
-                        pg_symbol = 'd'
-                    elif symbol == 'triangle-up':
-                        pg_symbol = 't'
-                    elif symbol == 'star':
-                        pg_symbol = 'star'
+                    if isinstance(scatter_items, list):
+                        for item in scatter_items:
+                            plot.addItem(item)
                     else:
-                        pg_symbol = 'o'  # Default
-                    
-                    try:
-                        # Add scatter item - full name for first of each variable,
-                        # just treatment number for duplicates
-                        name = f'{y_display} - Treatment {trno}'
-                        scatter = pg.ScatterPlotItem(
-                            x=x_vals,
-                            y=y_vals,
-                            pen=None,
-                            brush=brush,
-                            symbol=pg_symbol,
-                            size=10,
-                            name=name
-                        )
-                        plot.addItem(scatter)
-                        logger.info(f"Added scatter plot for {y_display} - treatment {trno}")
-                            
-                    except Exception as e:
-                        logger.error(f"Error adding scatter plot: {e}", exc_info=True)
-            except Exception as e:
-                logger.error(f"Error processing variable {y_var}: {e}", exc_info=True)
-    
-        # Emit the metrics signal
+                        plot.addItem(scatter_items)
+        
+        # Enable hardware acceleration and emit metrics
+        plot.useOpenGL(True)
         if self.metrics_data:
-            logger.info(f"Emitting metrics for {len(self.metrics_data)} variables")
             self.metrics_calculated.emit(self.metrics_data)
+    
+    def _get_cached_data(self, key):
+        """Get data from cache with timestamp validation"""
+        if key in self._data_cache:
+            data, timestamp = self._data_cache[key]
+            if (pd.Timestamp.now() - timestamp).total_seconds() < 300:  # 5 minute cache
+                return data
+        return None
+        
+    def _cache_data(self, key, data):
+        """Cache data with current timestamp"""
+        self._data_cache[key] = (data, pd.Timestamp.now())
+        
+    def process_data_efficiently(self, data, x_var, y_var):
+        """Process data with vectorized operations"""
+        cache_key = f"{x_var}_{y_var}"
+        cached = self._get_cached_data(cache_key)
+        if cached is not None:
+            return cached
+            
+        # Vectorized operations
+        valid_mask = data[[x_var, y_var]].notna().all(axis=1)
+        valid_data = data[valid_mask].copy()
+        
+        if not valid_data.empty:
+            # Convert to numeric using vectorized operations
+            valid_data[x_var] = pd.to_numeric(valid_data[x_var], errors='coerce')
+            valid_data[y_var] = pd.to_numeric(valid_data[y_var], errors='coerce')
+            
+            # Update cache
+            self._cache_data(cache_key, valid_data)
+            return valid_data
+            
+        return None
+        
+    def calculate_metrics_efficiently(self, x_values, y_values):
+        """Calculate metrics using optimized numpy operations"""
+        cache_key = f"{hash(str(x_values))}_{hash(str(y_values))}"
+        cached = self._get_cached_data(cache_key)
+        if cached is not None:
+            return cached
+            
+        metrics = {}
+        if len(x_values) >= 2:
+            # Vectorized metric calculations
+            x_mean = np.mean(x_values)
+            y_mean = np.mean(y_values)
+            
+            # Compute differences once
+            x_diff = x_values - x_mean
+            y_diff = y_values - y_mean
+            
+            # R-squared calculation
+            numerator = np.sum(x_diff * y_diff)
+            denom1 = np.sum(x_diff ** 2)
+            denom2 = np.sum(y_diff ** 2)
+            
+            if denom1 > 0 and denom2 > 0:
+                r = numerator / np.sqrt(denom1 * denom2)
+                metrics['r2'] = r ** 2
+            else:
+                metrics['r2'] = 0.0
+                
+            # RMSE calculation
+            metrics['rmse'] = np.sqrt(np.mean((y_values - x_values) ** 2))
+            
+            # D-stat calculation
+            try:
+                d_stat = MetricsCalculator.d_stat(y_values, x_values)
+                metrics['d_stat'] = d_stat if d_stat is not None else 0.0
+            except:
+                metrics['d_stat'] = 0.0
+                
+            self._cache_data(cache_key, metrics)
+            
+        return metrics

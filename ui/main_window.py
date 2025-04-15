@@ -34,6 +34,7 @@ from ui.widgets.status_widget import StatusWidget
 from ui.widgets.data_table_widget import DataTableWidget
 from ui.widgets.scatter_plot_widget import ScatterPlotWidget
 from ui.widgets.metrics_table_widget import MetricsDialog, MetricsTableWidget
+from utils.performance_monitor import PerformanceMonitor, function_timer
 
 class MainWindow(QMainWindow):
     execution_completed = pyqtSignal(bool, str)
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        self.perf_monitor = PerformanceMonitor()
         self.execution_status = {"completed": False}
         self.selected_treatments = []
         self.selected_experiment = None
@@ -467,20 +469,26 @@ class MainWindow(QMainWindow):
         self.scatter_y_var_selector.setVisible(custom_xy_selected)
         self.metrics_button.setEnabled(bool(self.current_metrics) and execution_complete)
     
+    @function_timer("ui")
     def load_folders(self):
         try:
+            timer_id = self.perf_monitor.start_timer("data_loading", "folders")
             folders = prepare_folders()
             self.folder_selector.clear()
             for folder in folders:
                 self.folder_selector.addItem(folder)
             if folders:
                 self.folder_selector.setCurrentIndex(48)
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error loading folders: {e}")
             self.show_error("Error loading crop folders", str(e))
     
+    @function_timer("ui")
     def load_experiments(self):
         try:
+            timer_id = self.perf_monitor.start_timer("data_loading", "experiments")
             if not self.selected_folder:
                 return
             experiments = prepare_experiment(self.selected_folder)
@@ -489,12 +497,16 @@ class MainWindow(QMainWindow):
                 self.experiment_selector.addItem(exp_name, userData=filename)
             if experiments:
                 self.experiment_selector.setCurrentIndex(0)
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error loading experiments: {e}")
             self.show_error("Error loading experiments", str(e))
     
+    @function_timer("ui")
     def load_treatments(self):
         try:
+            timer_id = self.perf_monitor.start_timer("data_loading", "treatments")
             if not self.selected_folder or not self.selected_experiment:
                 return
             treatments = prepare_treatment(self.selected_folder, self.selected_experiment)
@@ -516,13 +528,16 @@ class MainWindow(QMainWindow):
                 # Select all items by default
                 for i in range(self.treatment_list.count()):
                     self.treatment_list.item(i).setSelected(True)
-                
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error loading treatments: {e}")
             self.show_error("Error loading treatments", str(e))
         
+    @function_timer("ui") 
     def load_output_files(self):
         try:
+            timer_id = self.perf_monitor.start_timer("data_loading", "output_files")
             # Store previous search text
             prev_search = self.out_file_search.text() if hasattr(self, 'out_file_search') else ""
             if not self.selected_folder:
@@ -540,12 +555,16 @@ class MainWindow(QMainWindow):
             # Reapply search filter
             if prev_search:
                 self.filter_out_files(prev_search)
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error loading output files: {e}")
             self.show_error("Error loading output files", str(e))
     
+    @function_timer("ui")
     def load_variables(self):
         try:
+            timer_id = self.perf_monitor.start_timer("data_loading", "variables")
             # Store previous search text
             prev_search = self.y_var_search.text() if hasattr(self, 'y_var_search') else ""
             selected_files = [item.text() for item in 
@@ -603,7 +622,9 @@ class MainWindow(QMainWindow):
             # Reapply search filter
             if prev_search:
                 self.filter_y_vars(prev_search)
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error loading variables: {e}")
             self.show_error("Error loading variables", str(e))
             
@@ -986,8 +1007,10 @@ class MainWindow(QMainWindow):
         dialog = MetricsDialog(self.current_metrics, self)
         dialog.exec()  # Note: In PyQt6, exec() doesn't have parentheses
     
+    @function_timer("ui")
     def update_time_series_plot(self):
         try:
+            timer_id = self.perf_monitor.start_timer("plotting", "time_series")
             if not self.execution_status.get("completed", False):
                 return
             selected_files = [item.text() for item in self.out_file_selector.selectedItems()]
@@ -1015,12 +1038,16 @@ class MainWindow(QMainWindow):
                 self.treatment_names
             )
             self.update_data_table()
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error updating time series plot: {e}")
             self.show_error("Error updating plot", str(e))
     
+    @function_timer("ui")
     def update_scatter_plot(self):
         try:
+            timer_id = self.perf_monitor.start_timer("plotting", "scatter")
             if not self.execution_status.get("completed", False):
                 return
             sim_vs_meas_mode = self.sim_vs_meas_radio.isChecked()
@@ -1067,7 +1094,9 @@ class MainWindow(QMainWindow):
                     x_var,
                     y_vars
                 )
+            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
+            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
             logging.error(f"Error updating scatter plot: {e}", exc_info=True)
             self.show_error("Error updating scatter plot", str(e))
     

@@ -10,9 +10,6 @@ logger = logging.getLogger(__name__)
 
 def optimize_qt_settings():
     """Apply performance optimizations for PyQt"""
-    # We'll skip the high DPI settings since they're causing issues
-    # and they might not be critical for the application
-    
     # Set application name and organization for settings
     QCoreApplication.setApplicationName("DSSAT Viewer")
     QCoreApplication.setOrganizationName("DSSAT")
@@ -24,6 +21,8 @@ def optimize_qt_settings():
     
     # For OpenGL acceleration
     os.environ["QSG_RENDER_LOOP"] = "basic"  # Use basic render loop for better performance
+    os.environ["QT_QUICK_BACKEND"] = "software"  # Reduce GPU usage
+    os.environ["QT_OPENGL"] = "desktop"  # Force desktop OpenGL
     
     logger.info("Applied Qt performance optimizations")
     return True
@@ -80,9 +79,6 @@ def optimize_application(app):
     # Set style to Fusion which is generally more performant
     app.setStyle(QStyleFactory.create('Fusion'))
     
-    # In PyQt6, UI effects are handled differently
-    # We need to use stylesheet or other approaches instead
-    
     # Set desktop settings for performance
     settings = QSettings()
     settings.setValue("GUI/ComputeHighDPI", False)
@@ -99,11 +95,75 @@ def optimize_application(app):
     from PyQt6.QtGui import QFont
     app.setFont(QFont("Segoe UI", 9))
     
-    # Set OpenGL settings if available
-    try:
-        QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
-    except:
-        pass
-    
     logger.info("Optimized QApplication instance")
     return app
+
+"""
+Optimized startup configuration for PyQtGraph plotting
+"""
+import pyqtgraph as pg
+import numpy as np
+from PyQt6.QtCore import QThread
+import config
+
+def configure_pyqtgraph():
+    """Configure PyQtGraph settings for optimal performance"""
+    import pyqtgraph as pg
+    pg.setConfigOptions(
+        useOpenGL=True,
+        antialias=True,
+        foreground='k',
+        background='w',
+        imageAxisOrder='row-major',
+        exitCleanup=True  # Clean up on exit
+    )
+
+def optimize_thread_priority():
+    """Optimize thread priorities for better performance"""
+    try:
+        # Set current thread priority to high
+        current_thread = QThread.currentThread()
+        current_thread.setPriority(QThread.Priority.HighestPriority)
+    except Exception as e:
+        print(f"Error setting thread priority: {e}")
+        
+def configure_numpy():
+    """Configure NumPy settings for optimal performance"""
+    try:
+        import numpy as np
+        # Use threadpool_limits instead of set_num_threads
+        from threadpoolctl import threadpool_limits
+        
+        # Limit number of threads globally
+        threadpool_limits(limits=4, user_api='blas')
+        
+        # Additional NumPy optimizations
+        np.seterr(all='ignore')  # Ignore numeric warnings
+        np.random.seed(42)  # Set random seed for reproducibility
+        
+    except ImportError as e:
+        logger.warning(f"Could not fully configure NumPy: {e}")
+    except Exception as e:
+        logger.warning(f"Error during NumPy configuration: {e}")
+
+def optimize_plot_settings():
+    """Configure optimal plot settings"""
+    return {
+        'batch_size': config.PLOT_BATCH_SIZE,
+        'downsampling': True,
+        'downsampling_threshold': config.DOWNSAMPLING_THRESHOLD,
+        'antialiasing': False,
+        'clip_to_view': True,
+        'auto_range': False,
+        'mouse_enabled': True,
+        'background': 'w',
+        'line_width': 1,
+        'marker_size': 6
+    }
+    
+def initialize_optimized_plotting():
+    """Initialize all plotting optimizations"""
+    configure_pyqtgraph()
+    optimize_thread_priority()
+    configure_numpy()
+    return optimize_plot_settings()

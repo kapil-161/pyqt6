@@ -1,18 +1,26 @@
+# Set Qt attributes before ANY Qt imports or initialization
+from PyQt6.QtCore import Qt, QCoreApplication
+QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_UseDesktopOpenGL, True)
+
 """
 DSSAT Viewer - Main entry point
-Updated with pure PyQt6 implementation (no Dash)
 Updated with pure PyQt6 implementation (no Dash)
 Optimized for performance and fast tab switching
 """
 import sys
 import os
 import warnings
-
 import logging
 import gc
 from pathlib import Path
-from PyQt6.QtCore import  QSize, QCoreApplication
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtCore import QSize
+from PyQt6.QtWidgets import QApplication, QMessageBox, QStyleFactory
+from utils.performance_monitor import PerformanceMonitor, function_timer
+from ui.main_window import MainWindow  # Import MainWindow at the top level
+
+# Initialize performance monitor
+perf_monitor = PerformanceMonitor()
 
 # Configure logging first - use INFO level to avoid excessive logs
 logging.basicConfig(
@@ -67,59 +75,53 @@ sys.path.append(str(project_dir))
 
 def center_window(window):
     """Center window on screen"""
-    screen = QApplication.primaryScreen().geometry()
-    window.move(
-        (screen.width() - window.width()) // 2,
-        (screen.height() - window.height()) // 2
-    )
-def create_application():
-    """Create and configure the QApplication instance with optimizations."""
-    if not QApplication.instance():
-        # Create application first
-        app = QApplication(sys.argv)
-        
-        # Set application name and organization
-        QCoreApplication.setApplicationName("DSSAT Viewer")
-        QCoreApplication.setOrganizationName("DSSAT")
-        
-        # Apply more optimizations if available
-        try:
-            app = optimize_application(app)
-        except Exception as e:
-            logger.warning(f"Error applying optimizations: {e}")
-            # Note: In PyQt6, setStyle requires a QStyle instance, not a string
-            try:
-                from PyQt6.QtWidgets import QStyleFactory
-                app.setStyle(QStyleFactory.create('Fusion'))
-            except Exception as e2:
-                logger.warning(f"Error setting style: {e2}")
-            
-        return app
-    return QApplication.instance()
+    screen = window.screen().availableGeometry()
+    window_size = window.geometry()
+    x = (screen.width() - window_size.width()) // 2
+    y = (screen.height() - window_size.height()) // 2
+    window.move(x, y)
 
 # Import splash screen after optimizations
 from splash_screen import show_splash
 
+@function_timer("startup")
+def initialize_app():
+    """Initialize Qt application with monitoring"""
+    timer_id = perf_monitor.start_timer("startup", "qt_init")
+    app = QApplication(sys.argv)
+    perf_monitor.stop_timer(timer_id)
+    return app
+
+@function_timer("startup")
+def create_main_window():
+    """Create and set up main window with monitoring"""
+    timer_id = perf_monitor.start_timer("startup", "window_creation")
+    window = MainWindow()
+    window.show()
+    center_window(window)
+    perf_monitor.stop_timer(timer_id)
+    return window
+
+@function_timer("startup")
 def main():
     """Main application entry point with error handling and optimizations."""
+    startup_timer = perf_monitor.start_timer("application", "total_startup")
+    
     try:
-        # Apply Qt optimizations first
+        app = initialize_app()
+        
+        # Apply Qt optimizations
         try:
             from optimized_startup import optimize_qt_settings
             optimize_qt_settings()
         except ImportError:
             pass
             
-        # Create application instance
-        app = QApplication(sys.argv)
-        
         # Apply application optimizations
         try:
             from optimized_startup import optimize_application
             app = optimize_application(app)
         except:
-            # Use QStyleFactory to create a Fusion style instance
-            from PyQt6.QtWidgets import QStyleFactory
             app.setStyle(QStyleFactory.create('Fusion'))
             
         # Show splash screen
@@ -136,8 +138,11 @@ def main():
         # Import and initialize main application
         try:
             logger.info("Initializing main window...")
-            from ui.main_window import MainWindow
-            main_window = MainWindow()
+            
+            # Start timing main window creation
+            window_timer = perf_monitor.start_timer("ui", "main_window_creation")
+            main_window = create_main_window()
+            perf_monitor.stop_timer(window_timer)
             
             # Configure window
             main_window.resize(WINDOW_CONFIG['width'], WINDOW_CONFIG['height'])
@@ -148,9 +153,13 @@ def main():
             # Center window
             center_window(main_window)
             
+            # Stop total initialization timer
+            perf_monitor.stop_timer(startup_timer, "Application startup completed")
+            
             # Log startup time
             init_time = time.time() - start_time
             logger.info(f"Application initialized in {init_time:.2f} seconds")
+            perf_monitor.print_report()
             
             # Run garbage collection before showing window
             gc.collect()
@@ -168,6 +177,7 @@ def main():
             
     except Exception as e:
         logging.error(f"Error during startup: {e}", exc_info=True)
+        perf_monitor.stop_timer(startup_timer, f"Error during startup: {str(e)}")
         
         if QApplication.instance():
             QMessageBox.critical(

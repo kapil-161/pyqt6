@@ -11,10 +11,10 @@ import pandas as pd
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QTableView, QHeaderView,
     QPushButton, QHBoxLayout, QFileDialog, QGroupBox, QLabel, QComboBox,
-    QTabWidget
+    QTabWidget, QTableWidget, QTableWidgetItem
 )
 from PyQt6.QtCore import Qt, QAbstractTableModel, pyqtSlot
-
+from utils.performance_monitor import PerformanceMonitor, function_timer
 
 # Add project root to path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -73,7 +73,7 @@ class PandasTableModel(QAbstractTableModel):
         self.layoutChanged.emit()
 
 
-class DataTableWidget(QWidget):
+class DataTableWidget(QTableWidget):
     """
     Widget for displaying tabular data from DSSAT outputs
     
@@ -85,6 +85,7 @@ class DataTableWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.perf_monitor = PerformanceMonitor()
         self.setup_ui()
         
         # Store data for both simulated and observed
@@ -151,7 +152,7 @@ class DataTableWidget(QWidget):
         self.tab_widget.addTab(self.obs_table_view, "Observed Data")
         
         layout.addWidget(self.tab_widget)
-        
+        self.tab_widget.setCurrentIndex(1)  # Start with observed data tab
         # Connect tab changed signal
         self.tab_widget.currentChanged.connect(self.on_tab_changed)
         
@@ -434,3 +435,35 @@ class DataTableWidget(QWidget):
             logger.debug(f"Sim data shape: {self._sim_data.shape if self._sim_data is not None else None}")
         else:
             logger.debug(f"Obs data shape: {self._obs_data.shape if self._obs_data is not None else None}")
+
+    @function_timer("data_operations")
+    def load_data(self, data):
+        """Load data into the table with performance tracking"""
+        timer_id = self.perf_monitor.start_timer("ui", "table_population")
+        
+        # Clear existing items
+        self.clear()
+        self.setRowCount(0)
+        self.setColumnCount(0)
+        
+        if data is None or data.empty:
+            self.perf_monitor.stop_timer(timer_id, "No data to load")
+            return
+            
+        # Set dimensions
+        self.setRowCount(len(data))
+        self.setColumnCount(len(data.columns))
+        
+        # Set headers
+        self.setHorizontalHeaderLabels(data.columns)
+        
+        # Populate data
+        for row in range(len(data)):
+            for col in range(len(data.columns)):
+                value = str(data.iloc[row, col])
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.setItem(row, col, item)
+        
+        duration = self.perf_monitor.stop_timer(timer_id, f"Loaded {len(data)} rows")
+        return duration

@@ -391,26 +391,34 @@ class DataCacheManager:
     """Utility class for managing data caching with memory management."""
     
     def __init__(self):
-        self.data_cache = {}  # Cache for processed DataFrames
+        self.data_cache = {}
         self.variable_info = {}
         self.data_cde_cache = {}
         self.path_cache = {}
-        self.cache_size_limit = 1024 * 1024 * 512  # 512MB default cache limit
+        self.cache_size_limit = 1024 * 1024 * 256  # Reduced to 256MB for better memory usage
+        self.cache_hits = 0
+        self.cache_misses = 0
     
     def cache_data(self, key: str, data: pd.DataFrame, metadata: dict = None):
         """Cache DataFrame with memory management."""
         try:
+            # Convert object dtypes to categories where beneficial
+            for col in data.select_dtypes(include=['object']):
+                if data[col].nunique() / len(data[col]) < 0.5:  # If less than 50% unique values
+                    data[col] = data[col].astype('category')
+            
             data_size = data.memory_usage(deep=True).sum()
             
             # Clear old entries if cache would exceed limit
-            while (sum(df.memory_usage(deep=True).sum() 
-                      for df in self.data_cache.values()) + data_size > self.cache_size_limit 
+            while (self.get_cache_size() + data_size > self.cache_size_limit 
                    and self.data_cache):
-                self.data_cache.pop(next(iter(self.data_cache)))
+                oldest_key = min(self.path_cache.keys(), 
+                               key=lambda k: self.path_cache[k].get('last_access', 0))
+                self.clear_cache(oldest_key)
             
-            # Store data with optimization
-            self.data_cache[key] = data.copy()
+            self.data_cache[key] = data
             if metadata:
+                metadata['last_access'] = pd.Timestamp.now().timestamp()
                 self.path_cache[key] = metadata
                 
         except Exception as e:
@@ -418,8 +426,34 @@ class DataCacheManager:
     
     def get_cached_data(self, key: str) -> pd.DataFrame:
         """Retrieve cached data if available."""
-        return self.data_cache.get(key)
-    
+        if key in self.data_cache:
+            self.cache_hits += 1
+            if key in self.path_cache:
+                self.path_cache[key]['last_access'] = pd.Timestamp.now().timestamp()
+            return self.data_cache[key]
+        self.cache_misses += 1
+        return None
+        
+    def optimize_memory(self, threshold_mb: int = 200):  # Reduced threshold
+        """Optimize memory usage if it exceeds threshold."""
+        current_size = self.get_cache_size()
+        if current_size > threshold_mb * 1024 * 1024:
+            # Remove least recently used items until under threshold
+            while self.get_cache_size() > threshold_mb * 1024 * 1024 and self.path_cache:
+                oldest_key = min(self.path_cache.keys(), 
+                               key=lambda k: self.path_cache[k].get('last_access', 0))
+                self.clear_cache(oldest_key)
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
+            
+        # Log cache efficiency metrics
+        total_requests = self.cache_hits + self.cache_misses
+        if total_requests > 0:
+            hit_rate = (self.cache_hits / total_requests) * 100
+            logger.info(f"Cache hit rate: {hit_rate:.1f}%")
+
     def clear_cache(self, key: str = None):
         """Clear specific or all cached data."""
         if key:
