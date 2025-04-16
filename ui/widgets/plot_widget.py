@@ -207,7 +207,7 @@ class PlotWidget(QWidget):
         except Exception as e:
             logger.warning(f"Error during plot resize: {str(e)}")
     
-
+    
 
     @function_timer("visualization")
     def plot_time_series(self, selected_folder, selected_out_files, selected_experiment, 
@@ -273,7 +273,7 @@ class PlotWidget(QWidget):
                 if not crop_info:
                     logger.error(f"Could not find crop info for: {selected_folder}")
                     return
-
+                folder_path = crop_info['directory'].strip()
                 file_path = os.path.join(crop_info['directory'], selected_out_file)
                 sim_data = read_file(file_path)
                 

@@ -173,6 +173,15 @@ def prepare_out_files(selected_folder: str) -> List[str]:
 def read_file(file_path: str) -> Optional[DataFrame]:
     """Read and process DSSAT output file with optimized performance."""
     try:
+        if os.path.basename(file_path) == file_path:  # File has no directory part
+            # Try to find the file in crop directories
+            crop_details = get_crop_details()
+            for crop_info in crop_details:
+                folder_path = crop_info['directory'].strip()
+                possible_path = os.path.join(folder_path, file_path)
+                if os.path.exists(possible_path):
+                    file_path = possible_path
+                    break
         # Normalize the file path to ensure the correct format
         file_path = os.path.normpath(file_path)
         print(f"Attempting to open file: {file_path}")

@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         self.current_metrics = []
         self._tab_content_loaded = {}
         self._data_needs_refresh = False
+        self._variable_selection_changed = False
         self.setWindowTitle("DSSAT Viewer")
         self.setMinimumSize(1200, 800)
 
@@ -438,17 +439,30 @@ class MainWindow(QMainWindow):
         self.run_button.setEnabled(has_folder and has_experiment and has_treatments)
         
         current_tab = self.content_area.currentIndex()
-        self.time_series_group.setEnabled(execution_complete and (current_tab == 0 or 0 in self._tab_content_loaded))
-        self.scatter_group.setEnabled(execution_complete and (current_tab == 1 or 1 in self._tab_content_loaded))
-        self.refresh_button.setEnabled(execution_complete and current_tab in self._tab_content_loaded)
         
+        # Modified logic: Check if tab was ever loaded OR if data needs refresh
+        tab_was_loaded = current_tab in self._tab_content_loaded
+        needs_refresh = self._data_needs_refresh or self._variable_selection_changed
+        
+        # Enable time series and scatter groups if execution is complete
+        self.time_series_group.setEnabled(execution_complete and (current_tab == 0))
+        self.scatter_group.setEnabled(execution_complete and (current_tab == 1))
+        
+        # FIXED: Enable refresh button if execution is complete AND either tab was loaded OR data needs refreshing
+        self.refresh_button.setEnabled(execution_complete and (tab_was_loaded or needs_refresh))
+        
+        # Show appropriate group based on current tab
         self.time_series_group.setVisible(current_tab == 0)
         self.scatter_group.setVisible(current_tab == 1)
+        
+        # Handle scatter plot mode
         sim_vs_meas_selected = self.sim_vs_meas_radio.isChecked()
         custom_xy_selected = self.custom_xy_radio.isChecked()
         self.scatter_var_selector.setVisible(sim_vs_meas_selected)
         self.scatter_x_var_selector.setVisible(custom_xy_selected)
         self.scatter_y_var_selector.setVisible(custom_xy_selected)
+        
+        # Enable metrics button if we have metrics data
         self.metrics_button.setEnabled(bool(self.current_metrics) and execution_complete)
     
     @function_timer("ui")
@@ -866,6 +880,9 @@ class MainWindow(QMainWindow):
     def on_variable_selection_changed(self):
         if self.content_area.currentIndex() in self._tab_content_loaded:
             self._tab_content_loaded.pop(self.content_area.currentIndex())
+        # Set flag to indicate variables were changed
+        self._variable_selection_changed = True
+        self.update_ui_state()
         self.move_selected_items_to_top(self.y_var_selector)
     
     @pyqtSlot()
@@ -877,13 +894,17 @@ class MainWindow(QMainWindow):
             if current_tab == 0:
                 if not self.x_var_selector.count() or not self.y_var_selector.count():
                     self.load_variables()
-                # Clear the plot before refreshing
-                self.time_series_plot.clear()
+                # PyQtGraph PlotWidget uses clear() on the plot_view, not on the widget itself
+                if hasattr(self.time_series_plot, 'plot_view'):
+                    self.time_series_plot.plot_view.clear()
                 self.update_time_series_plot()
             elif current_tab == 1:
                 if not self.scatter_var_selector.count():
                     self.load_scatter_variables()
-                self.scatter_plot.clear()
+                # For scatter plot, clear the plot widgets
+                for plot_widget in getattr(self.scatter_plot, 'plot_widgets', []):
+                    if hasattr(plot_widget, 'clear'):
+                        plot_widget.clear()
                 self.update_scatter_plot()
             elif current_tab == 2:
                 if not self.x_var_selector.count() or not self.y_var_selector.count():
@@ -891,6 +912,8 @@ class MainWindow(QMainWindow):
                 self.data_table.clear()
                 self.update_data_table()
             self._tab_content_loaded[current_tab] = True
+            # Reset the variable selection changed flag
+            self._variable_selection_changed = False
         finally:
             self.setUpdatesEnabled(True)
             self.show_loading_indicator(False)
