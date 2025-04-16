@@ -207,16 +207,17 @@ class PlotWidget(QWidget):
         except Exception as e:
             logger.warning(f"Error during plot resize: {str(e)}")
     
+
+
     @function_timer("visualization")
     def plot_time_series(self, selected_folder, selected_out_files, selected_experiment, 
                         selected_treatments, x_var, y_vars, treatment_names=None):
-        
         timer_id = self.perf_monitor.start_timer("ui", "plot_rendering")
         
         try:
             # Check cache first
             plot_config = (selected_folder, tuple(selected_out_files), selected_experiment,
-                         tuple(selected_treatments), x_var, tuple(y_vars))
+                        tuple(selected_treatments), x_var, tuple(y_vars))
             
             if plot_config == self.last_plot_config and self.data_cache:
                 sim_data = self.data_cache.get('sim_data')
@@ -229,20 +230,7 @@ class PlotWidget(QWidget):
 
             # Clear the plot view efficiently
             self.plot_view.clear()
-            self.plot_view.enableAutoRange(False)  # Temporarily disable autorange
 
-            # Vectorized date conversion
-            def batch_date_convert(df):
-                if 'YEAR' in df.columns and 'DOY' in df.columns:
-                    df['DATE'] = pd.to_datetime(
-                        df['YEAR'].astype(str) + df['DOY'].astype(str).str.zfill(3), 
-                        format='%Y%j'
-                    )
-                return df
-
-            # Initialize scaling factors
-            sim_scaling_factors = {}
-            
             # Process simulation data in batches
             sim_data_list = []
             for file_path in selected_out_files:
@@ -265,9 +253,6 @@ class PlotWidget(QWidget):
             
             sim_data = pd.concat(sim_data_list, ignore_index=True) if sim_data_list else None
 
-            # Clear previous plot
-            self.plot_view.clear()
-            
             # Clear the legend container
             for i in reversed(range(self.legend_layout.count())):
                 item = self.legend_layout.itemAt(i)
@@ -332,7 +317,6 @@ class PlotWidget(QWidget):
             # Combine all simulation data
             sim_data = pd.concat(all_data, ignore_index=True)
             missing_values = {-99, -99.0, -99.9, -99.99}
-            MISSING_VALUES = {-99, -99.0, -99.9, -99.99, -99., '-99', '-99.0', '-99.9'}
             
             # Read observed data
             obs_data = None
@@ -363,10 +347,8 @@ class PlotWidget(QWidget):
                         self.obs_data = obs_data.copy()
             
             # Scale data for visualization
-            # Check if there's more than one variable before calculating scaling factors
-            if len(y_vars) <= 1:
-                sim_scaling_factors = {}  # Empty dict, no scaling will be applied
-            else:
+            sim_scaling_factors = {}
+            if len(y_vars) > 1:
                 # First pass: determine magnitude range
                 magnitudes = {}
                 for var in y_vars:
@@ -377,7 +359,6 @@ class PlotWidget(QWidget):
                             .values
                         )
                         if len(sim_values) > 0 and not np.isclose(np.min(sim_values), np.max(sim_values)):
-                            # Get average magnitude of the values
                             avg_value = np.mean(np.abs(sim_values))
                             if avg_value > 0:
                                 magnitudes[var] = np.floor(np.log10(avg_value))
@@ -389,10 +370,9 @@ class PlotWidget(QWidget):
                     
                     # Calculate scaling factors based on powers of 10
                     for var, magnitude in magnitudes.items():
-                        # Calculate power of 10 difference
                         power_diff = reference_magnitude - magnitude
                         scale_factor = 10 ** power_diff
-                        offset = 0  # No offset needed for power scaling
+                        offset = 0
                         sim_scaling_factors[var] = (scale_factor, offset)
             
             # Store scaling factors
@@ -419,76 +399,67 @@ class PlotWidget(QWidget):
             self.sim_data = sim_data
             self.obs_data = obs_data
             
-            # Create scaling text with improved formatting
+            # Create scaling text with plain text formatting
             scaling_parts = []
             for var, (scale_factor, offset) in sim_scaling_factors.items():
                 var_label, _ = get_variable_info(var)
                 display_name = var_label or var
-                scaling_parts.append(
-                    f"{display_name} = {round(scale_factor, 2):.2f} * {display_name} "
-                )
-            
-            # Always use line breaks between variables
-            scaling_html = "<br>".join(scaling_parts)
-            self.scaling_label.setText(scaling_html)
-            self.scaling_label.setWordWrap(True)  # Enable word wrapping
+                scaling_parts.append(f"{display_name} = {scale_factor:.2f} * {display_name}")
+            scaling_text = "\n".join(scaling_parts)
+            self.scaling_label.setText(scaling_text)
+            self.scaling_label.setWordWrap(True)
             
             # Set plot title and labels
             self.plot_view.setTitle("")
             x_label, _ = get_variable_info(x_var)
             x_display = x_label or x_var
             self.plot_view.setLabel('bottom', text=x_display, **{
-                'color': '#000000',  # Black color
+                'color': '#000000',
                 'font-weight': 'bold',
                 'font-size': '12pt'
             })
             
-            # Set y-axis label (combined if multiple)
+            # Set y-axis label
             y_axis_label = ", ".join(
                 get_variable_info(var)[0] or var
                 for var in y_vars
                 if var in sim_data.columns
             )
             self.plot_view.setLabel('left', text=y_axis_label, **{
-                'color': '#0066CC',  # Blue color
+                'color': '#0066CC',
                 'font-weight': 'bold',
             })
             
-            # Create custom Qt legend in the legend container widget
+            # Create custom Qt legend
             legend_label = QLabel("<b>Legend</b>")
             legend_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.legend_layout.addWidget(legend_label)
             
-            # Storage for our legend entries
+            # Storage for legend entries
             legend_entries = {
                 "Simulated": {},
                 "Observed": {}
             }
             
-            # Plot the data and collect items for legend
+            # Plot the data
             line_styles = [Qt.PenStyle.SolidLine, Qt.PenStyle.DashLine, Qt.PenStyle.DotLine, Qt.PenStyle.DashDotLine]
             pen_width = 2
             
-            # For each treatment and variable, add a line/points
             for dataset in [sim_data, obs_data]:
                 if dataset is not None and not dataset.empty:
-                    # Determine if this is simulated or observed data
                     source_type = dataset["source"].iloc[0]
                     category = "Simulated" if source_type == "sim" else "Observed"
                     
-                    if source_type == "obs":  # Add this line to print observed data
+                    if source_type == "obs":
                         print("Observed data being plotted:", dataset)
                         
-                    # Process each variable
                     for var_idx, var in enumerate(y_vars):
-                        # Initialize storage for this variable if not already created
                         var_label, _ = get_variable_info(var)
                         display_name = var_label or var
                         
                         if display_name not in legend_entries[category]:
                             legend_entries[category][display_name] = []
                         
-                        # Process each treatment
                         for trt_idx, (trt_value, group) in enumerate(dataset.groupby("TRT")):
                             if (
                                 trt_value in selected_treatments
@@ -499,45 +470,37 @@ class PlotWidget(QWidget):
                                     trt_display = treatment_names[trt_value]
                                 else:
                                     trt_display = f"Treatment {trt_value}"
-                                # Select color and style
                                 color_idx = trt_idx % len(self.colors)
                                 style_idx = var_idx % len(line_styles)
                                 color = self.colors[color_idx]
                                 qt_color = pg.mkColor(color)
                                 
                                 if source_type == "sim":
-                                    # Simulated data as line
                                     pen = pg.mkPen(
                                         color=qt_color, 
                                         width=pen_width, 
                                         style=line_styles[style_idx]
                                     )
                                     
-                                    # Get valid x and y values
                                     valid_mask = group[var].notna()
                                     x_values = group[valid_mask][x_var].values
                                     y_values = group[valid_mask][var].values
                                     
-                                    # Try to convert to datetime for proper display
-                                    try:
-                                        if x_var == "DATE":
+                                    if x_var == "DATE":
+                                        try:
                                             x_dates = pd.to_datetime(x_values)
-                                            # Convert to numeric timestamp for plotting
                                             x_values = [d.timestamp() for d in x_dates]
-                                    except Exception as e:
-                                        logger.warning(f"Error converting dates: {e}")
+                                        except Exception as e:
+                                            logger.warning(f"Error converting dates: {e}")
                                         
-                                    #x_values = np.array(x_values, dtype=np.float64)
                                     y_values = np.array(y_values, dtype=np.float64)
                                     
-                                    # Add line to plot
                                     curve = self.plot_view.plot(
                                         x_values, y_values, 
                                         pen=pen,
-                                        name=None  # No automatic legend
+                                        name=None
                                     )
                                     
-                                    # Save for legend
                                     legend_entries[category][display_name].append({
                                         "item": curve,
                                         "name": trt_display,
@@ -550,36 +513,30 @@ class PlotWidget(QWidget):
                                     symbol_idx = (trt_idx + var_idx * len(selected_treatments)) % len(self.marker_symbols)
                                     symbol = self.marker_symbols[symbol_idx]
                                     
-                                    # Get valid x and y values
                                     valid_mask = group[var].notna()
                                     x_values = group[valid_mask][x_var].values
                                     y_values = group[valid_mask][var].values
                                     
-                                    # Try to convert to datetime for proper display
-                                    try:
-                                        if x_var == "DATE":
+                                    if x_var == "DATE":
+                                        try:
                                             x_dates = pd.to_datetime(x_values)
-                                            # Convert to numeric timestamp for plotting
                                             x_values = [d.timestamp() for d in x_dates]
-                                    except Exception as e:
-                                        logger.warning(f"Error converting dates: {e}")
+                                        except Exception as e:
+                                            logger.warning(f"Error converting dates: {e}")
                                     
-                                    # Create symbol with or without border for more variations
                                     symbol_pen = None
-                                    if (var_idx + trt_idx) % 2 == 0:  # Add borders for some combinations
+                                    if (var_idx + trt_idx) % 2 == 0:
                                         symbol_pen = pg.mkPen(qt_color, width=1)
                                     
-                                    # Add scatter points to plot
                                     scatter = pg.ScatterPlotItem(
                                         x=x_values, y=y_values,
                                         symbol=symbol,
-                                        size=8,  # Fixed size
+                                        size=8,
                                         pen=symbol_pen, brush=qt_color,
-                                        name=None  # No automatic legend
+                                        name=None
                                     )
                                     self.plot_view.addItem(scatter)
                                     
-                                    # Save for legend
                                     legend_entries[category][display_name].append({
                                         "item": scatter,
                                         "name": trt_display,
@@ -589,33 +546,33 @@ class PlotWidget(QWidget):
                                         "symbol": symbol
                                     })
             
-            # Build the custom legend in the sidebar widget
+            # Build the custom legend in batch
+            legend_items = []
             for category in ["Simulated", "Observed"]:
                 if legend_entries[category]:
                     category_label = QLabel(f"<b>{category}</b>")
                     category_label.setStyleSheet("padding: 2px;")
-                    self.legend_layout.addWidget(category_label)
+                    legend_items.append(category_label)
                     
                     for var_name, treatments in sorted(legend_entries[category].items()):
                         var_label = QLabel(f"{var_name}")
                         var_label.setStyleSheet("padding-left: 5px;")
-                        self.legend_layout.addWidget(var_label)
+                        legend_items.append(var_label)
                         
                         for treatment in sorted(treatments, key=lambda x: x["trt"]):
                             trt_name = treatment["name"]
                             entry_widget = QWidget()
                             entry_layout = QHBoxLayout()
-                            entry_layout.setSpacing(2)  # Minimal spacing
-                            entry_layout.setContentsMargins(10, 0, 0, 0)  # Left padding only
+                            entry_layout.setSpacing(2)
+                            entry_layout.setContentsMargins(10, 0, 0, 0)
                             entry_widget.setLayout(entry_layout)
                             
                             sample_widget = pg.PlotWidget(background=None)
-                            sample_widget.setFixedSize(30, 15)  # Smaller sample size
+                            sample_widget.setFixedSize(30, 15)
                             sample_widget.hideAxis('left')
                             sample_widget.hideAxis('bottom')
                             sample_widget.setMouseEnabled(False, False)
                             
-                            # Add plot sample (same as before)
                             if "symbol" in treatment and treatment["symbol"] is not None:
                                 sample = pg.ScatterPlotItem(
                                     x=[0.5], y=[0.5],
@@ -637,15 +594,16 @@ class PlotWidget(QWidget):
                             entry_layout.addWidget(label)
                             entry_layout.addStretch(1)
                             
-                            self.legend_layout.addWidget(entry_widget)
-
+                            legend_items.append(entry_widget)
             
-            
+            # Add all legend items at once
+            for item in legend_items:
+                self.legend_layout.addWidget(item)
             
             # Set nice axis formatting for dates
             if x_var == "DATE":
                 date_axis = pg.DateAxisItem(orientation='bottom')
-                date_axis.setLabel(text="Date", **{ 'color': '#000000', 'font-weight': 'bold'})
+                date_axis.setLabel(text="Date", **{'color': '#000000', 'font-weight': 'bold'})
                 self.plot_view.setAxisItems({'bottom': date_axis})
                 
             # Enable auto-ranging and show grids
@@ -661,10 +619,6 @@ class PlotWidget(QWidget):
                 'obs_data': obs_data
             }
             self.last_plot_config = plot_config
-
-            # Re-enable autorange and update view
-            self.plot_view.enableAutoRange(True)
-            self.plot_view.updateGeometry()
 
             # Calculate and emit metrics if we have observed data
             if obs_data is not None and not obs_data.empty:
@@ -820,7 +774,7 @@ class PlotWidget(QWidget):
                         metrics_data.append({
                             "Variable": f"{display_name} - {trt_name}",
                             "n": len(sim_values),
-                            "R²": 0.0,  # Not applicable for insufficient points
+                            #"R²": 0.0,  # Not applicable for insufficient points
                             "RMSE": 0.0,
                             "d-stat": 0.0,
                         })
@@ -848,7 +802,7 @@ class PlotWidget(QWidget):
                         metrics_data.append({
                             "Variable": f"{display_name} - {trt_name}",
                             "n": len(sim_values),
-                            "R²": round(r2, 3),
+                            #"R²": round(r2, 3),
                             "RMSE": round(rmse, 3),
                             "d-stat": round(d_stat_val, 3),
                         })
@@ -861,7 +815,7 @@ class PlotWidget(QWidget):
                         metrics_data.append({
                             "Variable": f"{display_name} - {trt_name}",
                             "n": len(sim_values),
-                            "R²": 0.0,
+                            #"R²": 0.0,
                             "RMSE": 0.0,
                             "d-stat": 0.0,
                         })

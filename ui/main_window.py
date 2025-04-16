@@ -8,13 +8,11 @@ from typing import List, Dict, Optional, Any
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter,
     QTabWidget, QLabel, QComboBox, QPushButton, QGroupBox,
-    QMessageBox,  QListWidget, QCheckBox, QApplication, 
+    QMessageBox, QListWidget, QCheckBox, QApplication, 
     QListWidgetItem, QProgressBar, QScrollArea, QSizePolicy,
-    QLineEdit  # Add this import
+    QLineEdit
 )
-from PyQt6.QtCore import Qt, QTimer,  pyqtSignal, pyqtSlot
-
-
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, pyqtSlot
 
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_dir)
@@ -56,7 +54,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("DSSAT Viewer")
         self.setMinimumSize(1200, 800)
 
-        # Make window resizable
         self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
@@ -64,10 +61,7 @@ class MainWindow(QMainWindow):
         self.statusBar().addPermanentWidget(self.status_widget, 1)
         self.setup_ui()
         
-        # Allow child widgets to expand with the window
         self.central_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
-        # Ensure content_area can expand
         self.content_area.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         self.setup_loading_indicator()
@@ -101,12 +95,10 @@ class MainWindow(QMainWindow):
             self.scatter_plot.end_update = end_update.__get__(self.scatter_plot)
     
     def setup_ui(self):
-        # Set application-wide style with lighter colors
         self.setStyleSheet("""
-            * { color: #000000; }  /* Make all text black */
-            
+            * { color: #000000; }
             QMainWindow, QWidget {
-                background-color: #F0F5F9;  /* Light blue-gray background */
+                background-color: #F0F5F9;
             }
             QTabWidget::pane {
                 border: 1px solid #E4E8ED;
@@ -155,7 +147,7 @@ class MainWindow(QMainWindow):
                 background-color: transparent;
             }
             QPushButton {
-                background-color: #52A7E0;  /* Sky blue */
+                background-color: #52A7E0;
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -168,8 +160,6 @@ class MainWindow(QMainWindow):
                 background-color: #C9D6DF;
             }
         """)
-        
-        # Rest of your code remains unchanged...
         
         self.central_widget = QWidget()
         self.central_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -219,9 +209,8 @@ class MainWindow(QMainWindow):
         self.content_area.setDocumentMode(True)
         self.splitter.addWidget(self.content_area)
         
-        # Set the stretch factors for the splitter
-        self.splitter.setStretchFactor(0, 1)  # Sidebar
-        self.splitter.setStretchFactor(1, 3)  # Content area
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 3)
         
         self.time_series_tab = QWidget()
         time_series_layout = QVBoxLayout()
@@ -305,9 +294,8 @@ class MainWindow(QMainWindow):
         group_layout = QVBoxLayout()
         group.setLayout(group_layout)
         
-        # Add a checkbox for select all/deselect all
         self.select_all_checkbox = QCheckBox("Select All/Deselect All")
-        self.select_all_checkbox.setChecked(True)  # Default to checked
+        self.select_all_checkbox.setChecked(True)
         self.select_all_checkbox.toggled.connect(self.on_select_all_treatments_toggled)
         group_layout.addWidget(self.select_all_checkbox)
         
@@ -321,17 +309,12 @@ class MainWindow(QMainWindow):
         layout.addWidget(group)
 
     def on_select_all_treatments_toggled(self, checked):
-        # Temporarily disconnect to avoid recursive calls
         self.treatment_list.itemSelectionChanged.disconnect(self.on_treatment_selection_changed)
         
-        # Select or deselect all items
         for i in range(self.treatment_list.count()):
             self.treatment_list.item(i).setSelected(checked)
         
-        # Reconnect signal
         self.treatment_list.itemSelectionChanged.connect(self.on_treatment_selection_changed)
-        
-        # Update selected treatments list
         self.on_treatment_selection_changed()
     
     def setup_run_controls(self, layout):
@@ -349,7 +332,6 @@ class MainWindow(QMainWindow):
         file_layout = QVBoxLayout()
         file_group.setLayout(file_layout)
         
-        # Add search bar for output files
         self.out_file_search = QLineEdit()
         self.out_file_search.setPlaceholderText("Search output files...")
         self.out_file_search.textChanged.connect(self.filter_out_files)
@@ -358,7 +340,6 @@ class MainWindow(QMainWindow):
         self.out_file_selector = QListWidget()
         self.out_file_selector.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         self.out_file_selector.setMinimumHeight(60)
-        #self.out_file_selector.setMaximumHeight(80)
         file_layout.addWidget(self.out_file_selector)
         layout.addWidget(file_group)
         self.time_series_group = QGroupBox("Time Series Variables")
@@ -369,7 +350,6 @@ class MainWindow(QMainWindow):
         ts_layout.addWidget(self.x_var_selector)
         ts_layout.addWidget(QLabel("Y Variables"))
         
-        # Add search bar for Y variables
         self.y_var_search = QLineEdit()
         self.y_var_search.setPlaceholderText("Search Y variables...")
         self.y_var_search.textChanged.connect(self.filter_y_vars)
@@ -456,10 +436,12 @@ class MainWindow(QMainWindow):
         has_treatments = len(self.selected_treatments) > 0
         execution_complete = self.execution_status.get("completed", False)
         self.run_button.setEnabled(has_folder and has_experiment and has_treatments)
-        self.time_series_group.setEnabled(execution_complete)
-        self.scatter_group.setEnabled(execution_complete)
-        self.refresh_button.setEnabled(execution_complete)
+        
         current_tab = self.content_area.currentIndex()
+        self.time_series_group.setEnabled(execution_complete and (current_tab == 0 or 0 in self._tab_content_loaded))
+        self.scatter_group.setEnabled(execution_complete and (current_tab == 1 or 1 in self._tab_content_loaded))
+        self.refresh_button.setEnabled(execution_complete and current_tab in self._tab_content_loaded)
+        
         self.time_series_group.setVisible(current_tab == 0)
         self.scatter_group.setVisible(current_tab == 1)
         sim_vs_meas_selected = self.sim_vs_meas_radio.isChecked()
@@ -519,13 +501,11 @@ class MainWindow(QMainWindow):
                     item.setData(Qt.ItemDataRole.UserRole, row.TR)
                     self.treatment_list.addItem(item)
                 
-                # Disconnect to avoid triggering the signal multiple times
                 if hasattr(self, 'select_all_checkbox'):
                     self.select_all_checkbox.toggled.disconnect(self.on_select_all_treatments_toggled)
                     self.select_all_checkbox.setChecked(True)
                     self.select_all_checkbox.toggled.connect(self.on_select_all_treatments_toggled)
                 
-                # Select all items by default
                 for i in range(self.treatment_list.count()):
                     self.treatment_list.item(i).setSelected(True)
             self.perf_monitor.stop_timer(timer_id)
@@ -538,7 +518,6 @@ class MainWindow(QMainWindow):
     def load_output_files(self):
         try:
             timer_id = self.perf_monitor.start_timer("data_loading", "output_files")
-            # Store previous search text
             prev_search = self.out_file_search.text() if hasattr(self, 'out_file_search') else ""
             if not self.selected_folder:
                 return
@@ -552,7 +531,6 @@ class MainWindow(QMainWindow):
                         self.out_file_selector.item(i).setSelected(True)
             elif out_files:
                 self.out_file_selector.item(0).setSelected(True)
-            # Reapply search filter
             if prev_search:
                 self.filter_out_files(prev_search)
             self.perf_monitor.stop_timer(timer_id)
@@ -565,7 +543,6 @@ class MainWindow(QMainWindow):
     def load_variables(self):
         try:
             timer_id = self.perf_monitor.start_timer("data_loading", "variables")
-            # Store previous search text
             prev_search = self.y_var_search.text() if hasattr(self, 'y_var_search') else ""
             selected_files = [item.text() for item in 
                             self.out_file_selector.selectedItems()]
@@ -613,13 +590,11 @@ class MainWindow(QMainWindow):
                         self.y_var_selector.item(i).setSelected(True)
                         break
             elif all_columns:
-                # Find the first non-DATE column to select as default
                 for i in range(self.y_var_selector.count()):
                     var_name = self.y_var_selector.item(i).data(Qt.ItemDataRole.UserRole)
                     if var_name != "DATE" and var_name != "DOY" and var_name != "YEAR":
                         self.y_var_selector.item(i).setSelected(True)
                         break
-            # Reapply search filter
             if prev_search:
                 self.filter_y_vars(prev_search)
             self.perf_monitor.stop_timer(timer_id)
@@ -716,9 +691,8 @@ class MainWindow(QMainWindow):
     def mark_data_needs_refresh(self):
         self._data_needs_refresh = True
         self._tab_content_loaded = {}
+    
     def move_selected_items_to_top(self, list_widget):
-        """Move all selected items to the top of the list widget."""
-        # Use a flag to prevent recursive calls
         if hasattr(self, '_is_reordering') and self._is_reordering:
             return
         
@@ -726,20 +700,16 @@ class MainWindow(QMainWindow):
         
         try:
             selected_items = []
-            
-            # Extract all selected items
             for i in range(list_widget.count()):
                 item = list_widget.item(i)
                 if item.isSelected():
-                    # Create a clone of the item
                     clone = QListWidgetItem(item.text())
                     clone.setData(Qt.ItemDataRole.UserRole, item.data(Qt.ItemDataRole.UserRole))
                     selected_items.append(clone)
             
             if not selected_items:
-                return  # No selected items to move
+                return
             
-            # Get all unselected items
             unselected_items = []
             for i in range(list_widget.count()):
                 item = list_widget.item(i)
@@ -748,22 +718,17 @@ class MainWindow(QMainWindow):
                     clone.setData(Qt.ItemDataRole.UserRole, item.data(Qt.ItemDataRole.UserRole))
                     unselected_items.append(clone)
             
-            # Temporarily disconnect signals to prevent recursive calls
             list_widget.itemSelectionChanged.disconnect()
             
-            # Clear the list and add items in the new order
             list_widget.clear()
             
-            # Add selected items first
             for item in selected_items:
                 list_widget.addItem(item)
                 item.setSelected(True)
             
-            # Add unselected items
             for item in unselected_items:
                 list_widget.addItem(item)
             
-            # Reconnect signals
             if list_widget == self.treatment_list:
                 list_widget.itemSelectionChanged.connect(self.on_treatment_selection_changed)
             elif list_widget == self.y_var_selector:
@@ -775,9 +740,6 @@ class MainWindow(QMainWindow):
                 
         finally:
             self._is_reordering = False
-
-
-
 
     @pyqtSlot()
     def on_folder_changed(self):
@@ -808,7 +770,6 @@ class MainWindow(QMainWindow):
             trt_str = item.text().split(' - ')[0]
             self.selected_treatments.append(trt_str)
         
-        # Update select all checkbox without triggering its signal
         if hasattr(self, 'select_all_checkbox'):
             self.select_all_checkbox.blockSignals(True)
             self.select_all_checkbox.setChecked(len(self.selected_treatments) == self.treatment_list.count())
@@ -816,7 +777,6 @@ class MainWindow(QMainWindow):
         
         self.update_ui_state()
         self.move_selected_items_to_top(self.treatment_list)
-        
     
     @pyqtSlot()
     def on_run_button_clicked(self):
@@ -873,12 +833,26 @@ class MainWindow(QMainWindow):
             self.execution_status = {"completed": True}
             self.show_success(message)
             self.load_output_files()
-            self.load_variables()
-            self.load_scatter_variables()
             self.mark_data_needs_refresh()
             self.update_ui_state()
-            self.on_refresh_clicked()
-            self._tab_content_loaded[self.content_area.currentIndex()] = True
+            current_tab = self.content_area.currentIndex()
+            self.show_loading_indicator(True)
+            try:
+                self.setUpdatesEnabled(False)
+                if current_tab == 0:
+                    self.load_variables()
+                    self.update_time_series_plot()
+                elif current_tab == 1:
+                    self.load_scatter_variables()
+                    self.update_scatter_plot()
+                elif current_tab == 2:
+                    self.load_variables()
+                    self.update_data_table()
+                self._tab_content_loaded[current_tab] = True
+            finally:
+                self.setUpdatesEnabled(True)
+                self.show_loading_indicator(False)
+                self.repaint()
         else:
             self.show_error("Execution Error", message)
     
@@ -901,10 +875,20 @@ class MainWindow(QMainWindow):
         try:
             self.setUpdatesEnabled(False)
             if current_tab == 0:
+                if not self.x_var_selector.count() or not self.y_var_selector.count():
+                    self.load_variables()
+                # Clear the plot before refreshing
+                self.time_series_plot.clear()
                 self.update_time_series_plot()
             elif current_tab == 1:
+                if not self.scatter_var_selector.count():
+                    self.load_scatter_variables()
+                self.scatter_plot.clear()
                 self.update_scatter_plot()
             elif current_tab == 2:
+                if not self.x_var_selector.count() or not self.y_var_selector.count():
+                    self.load_variables()
+                self.data_table.clear()
                 self.update_data_table()
             self._tab_content_loaded[current_tab] = True
         finally:
@@ -935,15 +919,20 @@ class MainWindow(QMainWindow):
     
     def _deferred_tab_load(self):
         index = self._current_tab_index
-        needs_loading = True
         try:
             start_time = time.time()
             self.setUpdatesEnabled(False)
             if index == 0:
+                if not self.x_var_selector.count() or not self.y_var_selector.count():
+                    self.load_variables()
                 self.update_time_series_plot()
             elif index == 1:
+                if not self.scatter_var_selector.count():
+                    self.load_scatter_variables()
                 self.update_scatter_plot()
             elif index == 2:
+                if not self.x_var_selector.count() or not self.y_var_selector.count():
+                    self.load_variables()
                 self.update_data_table()
             self._tab_content_loaded[index] = True
             if all(i in self._tab_content_loaded for i in range(self.content_area.count())):
@@ -1005,7 +994,7 @@ class MainWindow(QMainWindow):
             self.status_widget.show_warning("No metrics data available for current view")
             return
         dialog = MetricsDialog(self.current_metrics, self)
-        dialog.exec()  # Note: In PyQt6, exec() doesn't have parentheses
+        dialog.exec()
     
     @function_timer("ui")
     def update_time_series_plot(self):
@@ -1037,7 +1026,6 @@ class MainWindow(QMainWindow):
                 y_vars,
                 self.treatment_names
             )
-            self.update_data_table()
             self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
             self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
@@ -1105,7 +1093,9 @@ class MainWindow(QMainWindow):
             if not self.execution_status.get("completed", False):
                 return
                 
-            # Get simulation data
+            if self.content_area.currentIndex() != 2:
+                return
+                
             selected_files = [item.text() for item in self.out_file_selector.selectedItems()]
             if not selected_files:
                 return
@@ -1121,12 +1111,11 @@ class MainWindow(QMainWindow):
                 if not crop_info:
                     continue
                 file_path = os.path.join(crop_info['directory'], out_file)
-                print(f"Reading file with full path: {file_path}")
+                logging.info(f"Reading file with full path: {file_path}")
                 file_data = read_file(file_path)
                 if file_data is not None and not file_data.empty:
                     file_data['FILE'] = out_file
-                    file_data['source'] = 'sim'  # Add source column
-                    # Ensure TRT column exists - might be TRNO or another name
+                    file_data['source'] = 'sim'
                     if 'TRT' not in file_data.columns:
                         if 'TRNO' in file_data.columns:
                             file_data['TRT'] = file_data['TRNO']
@@ -1135,13 +1124,10 @@ class MainWindow(QMainWindow):
                         elif 'TN' in file_data.columns:
                             file_data['TRT'] = file_data['TN']
                         else:
-                            # No treatment column found, create default
                             file_data['TRT'] = '1'
-                    # Ensure TRT is treated as string for filtering
                     file_data['TRT'] = file_data['TRT'].astype(str)
                     all_data.append(file_data)
                     
-            # Get observed data
             if self.selected_experiment:
                 x_var = self.x_var_selector.currentData() or self.x_var_selector.currentText()
                 y_vars = []
@@ -1160,7 +1146,7 @@ class MainWindow(QMainWindow):
                 )
                 
                 if obs_data is not None and not obs_data.empty:
-                    obs_data['source'] = 'obs'  # Add source column
+                    obs_data['source'] = 'obs'
                     if 'TRNO' in obs_data.columns:
                         obs_data['TRNO'] = obs_data['TRNO'].astype(str)
                         obs_data = obs_data.rename(columns={'TRNO': 'TRT'})
@@ -1168,19 +1154,15 @@ class MainWindow(QMainWindow):
             
             if all_data:
                 combined_data = pd.concat(all_data, ignore_index=True)
-                # Check if any selected treatments exist in the data
                 if any(trt in combined_data['TRT'].unique() for trt in self.selected_treatments):
                     filtered_data = combined_data[combined_data['TRT'].isin(self.selected_treatments)]
                 else:
-                    # If no selected treatments match, show all data
                     filtered_data = combined_data
                     self.show_warning("Selected treatments not found in data")
                 
-                # Split into simulated and observed data
                 sim_data = filtered_data[filtered_data['source'] == 'sim'].copy() if 'source' in filtered_data.columns else filtered_data.copy()
                 obs_data = filtered_data[filtered_data['source'] == 'obs'].copy() if 'source' in filtered_data.columns else None
                 
-                # Update the data table with both simulated and observed data
                 self.data_table.set_data(sim_data=sim_data, obs_data=obs_data)
             else:
                 self.data_table.clear()
