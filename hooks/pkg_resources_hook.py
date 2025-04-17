@@ -15,7 +15,7 @@ def patch_pkg_resources():
         
         def safe_add_entry(self, entry):
             # Skip temporary directories that might cause problems
-            if isinstance(entry, str) and any(x in entry for x in ['/tmp/', '/temp/', '_MEI']):
+            if isinstance(entry, str) and any(x in entry.lower() for x in ['\\temp\\', '\\tmp\\', '_MEI']):
                 return
             try:
                 original_add_entry(entry)

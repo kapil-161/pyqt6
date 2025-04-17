@@ -11,8 +11,6 @@ hiddenimports = [
     'packaging.specifiers', 
     'packaging.requirements', 
     'packaging.markers',
-    'pkg_resources.extern.packaging',
-    'setuptools.extern.packaging',
     'importlib_metadata',
     'zipp',
     'attrs',

@@ -9,9 +9,9 @@ import pandas as pd
 import pyqtgraph as pg
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QHBoxLayout,
-    QFrame, QSizePolicy, QScrollArea, QToolTip
+    QFrame, QSizePolicy, QScrollArea
 )
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot, QPoint
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtSlot
 from PyQt6.QtGui import QBrush, QPen, QColor
 
 # Add project root to path
@@ -26,7 +26,6 @@ from data.data_processing import (
     standardize_dtypes, unified_date_convert
 )
 from models.metrics import MetricsCalculator
-from utils.performance_monitor import PerformanceMonitor, function_timer
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,7 +36,6 @@ class PlotWidget(QWidget):
     
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.perf_monitor = PerformanceMonitor()
         
         self.colors = config.PLOT_COLORS
         self.marker_symbols = config.MARKER_SYMBOLS
@@ -58,18 +56,11 @@ class PlotWidget(QWidget):
         self.sim_data = None
         self.obs_data = None
         
-        # Store plot items with metadata for hover and click
+        # Store plot items with metadata
         self.plot_items_metadata = []
-        
-        # Debounce timer for tooltips (shared for hover and click)
-        self.tooltip_timer = QTimer(self)
-        self.tooltip_timer.setSingleShot(True)
-        self.tooltip_timer.setInterval(100)  # 100ms debounce
-        self.last_tooltip_text = None
         
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
-        setup_timer = self.perf_monitor.start_timer("ui", "plot_widget_setup")
         self.setup_ui()
         
         pg.setConfigOptions(
@@ -88,8 +79,6 @@ class PlotWidget(QWidget):
         self.plot_view.enableAutoRange(False)
         self.plot_view.setMenuEnabled(False)
         self.plot_view.setLogMode(False, False)
-        
-        self.perf_monitor.stop_timer(setup_timer)
         
     def setup_ui(self):
         main_layout = QHBoxLayout()
@@ -165,10 +154,6 @@ class PlotWidget(QWidget):
         
         self.plot_view.enableAutoRange()
         
-        # Connect mouse signals
-        self.plot_view.scene().sigMouseMoved.connect(self.on_mouse_moved)
-        self.plot_view.scene().sigMouseClicked.connect(self.on_mouse_clicked)
-        
         self.resizeEvent = self.on_resize
         
     def on_resize(self, event):
@@ -178,151 +163,6 @@ class PlotWidget(QWidget):
         except Exception as e:
             logger.warning(f"Error during plot resize: {str(e)}")
     
-    def on_mouse_moved(self, pos):
-        """Handle mouse movement to show variable names on hover."""
-        logger.debug("Mouse moved event triggered")
-        try:
-            view_pos = self.plot_view.getViewBox().mapSceneToView(pos)
-            mouse_x, mouse_y = view_pos.x(), view_pos.y()
-            logger.debug(f"Mouse position in view: ({mouse_x:.2f}, {mouse_y:.2f})")
-
-            closest_item = None
-            min_distance = float('inf')
-            closest_metadata = None
-
-            logger.debug(f"Checking {len(self.plot_items_metadata)} plot items")
-            for item, metadata in self.plot_items_metadata:
-                if isinstance(item, (pg.PlotDataItem, pg.ScatterPlotItem)):
-                    x_data, y_data = item.getData()
-                else:
-                    logger.debug(f"Skipping unknown item type: {type(item)}")
-                    continue
-
-                if metadata['x_var'] == "DATE":
-                    try:
-                        valid_mask = ~np.isnan(x_data) & ~np.isnan(y_data)
-                        x_data = x_data[valid_mask]
-                        y_data = y_data[valid_mask]
-                    except Exception as e:
-                        logger.warning(f"Error processing timestamps: {e}")
-                        continue
-
-                # Sample points to improve performance
-                step = max(1, len(x_data) // 100)  # Check up to 100 points per item
-                for i in range(0, len(x_data), step):
-                    x, y = x_data[i], y_data[i]
-                    if np.isnan(x) or np.isnan(y):
-                        continue
-                    distance = ((mouse_x - x) ** 2 + (mouse_y - y) ** 2) ** 0.5
-                    if distance < min_distance and distance < 200:  # Larger threshold
-                        min_distance = distance
-                        closest_item = item
-                        closest_metadata = metadata
-                    logger.debug(f"Distance to point ({x:.2f}, {y:.2f}): {distance:.2f}")
-
-            def show_tooltip():
-                if closest_item and closest_metadata:
-                    var_label, _ = get_variable_info(closest_metadata['variable'])
-                    display_name = var_label or closest_metadata['variable']
-                    tooltip_text = f"Variable: {display_name}\nTreatment: {closest_metadata['treatment_name']}"
-                    if tooltip_text != self.last_tooltip_text:
-                        logger.info(f"Showing tooltip on hover: {tooltip_text}")
-                        QToolTip.showText(
-                            self.plot_view.mapToGlobal(QPoint(int(pos.x()), int(pos.y()))),
-                            tooltip_text,
-                            self.plot_view,
-                            QRect(),
-                            2000  # Show for 2 seconds
-                        )
-                        self.last_tooltip_text = tooltip_text
-                else:
-                    if self.last_tooltip_text:
-                        logger.debug("Hiding tooltip")
-                        QToolTip.hideText()
-                        self.last_tooltip_text = None
-
-            # Debounce tooltip display
-            if self.tooltip_timer.isActive():
-                self.tooltip_timer.stop()
-            self.tooltip_timer.timeout.connect(show_tooltip)
-            self.tooltip_timer.start()
-
-        except Exception as e:
-            logger.error(f"Error in mouse hover handling: {e}", exc_info=True)
-
-    def on_mouse_clicked(self, event):
-        """Handle mouse clicks to show variable names."""
-        logger.debug("Mouse clicked event triggered")
-        try:
-            pos = event.scenePos()  # Get the position where the click occurred
-            view_pos = self.plot_view.getViewBox().mapSceneToView(pos)
-            mouse_x, mouse_y = view_pos.x(), view_pos.y()
-            logger.debug(f"Mouse clicked at position in view: ({mouse_x:.2f}, {mouse_y:.2f})")
-
-            closest_item = None
-            min_distance = float('inf')
-            closest_metadata = None
-
-            logger.debug(f"Checking {len(self.plot_items_metadata)} plot items for click")
-            for item, metadata in self.plot_items_metadata:
-                if isinstance(item, (pg.PlotDataItem, pg.ScatterPlotItem)):
-                    x_data, y_data = item.getData()
-                else:
-                    logger.debug(f"Skipping unknown item type: {type(item)}")
-                    continue
-
-                if metadata['x_var'] == "DATE":
-                    try:
-                        valid_mask = ~np.isnan(x_data) & ~np.isnan(y_data)
-                        x_data = x_data[valid_mask]
-                        y_data = y_data[valid_mask]
-                    except Exception as e:
-                        logger.warning(f"Error processing timestamps: {e}")
-                        continue
-
-                # Sample points to improve performance
-                step = max(1, len(x_data) // 100)
-                for i in range(0, len(x_data), step):
-                    x, y = x_data[i], y_data[i]
-                    if np.isnan(x) or np.isnan(y):
-                        continue
-                    distance = ((mouse_x - x) ** 2 + (mouse_y - y) ** 2) ** 0.5
-                    if distance < min_distance and distance < 200:
-                        min_distance = distance
-                        closest_item = item
-                        closest_metadata = metadata
-                    logger.debug(f"Distance to point ({x:.2f}, {y:.2f}): {distance:.2f}")
-
-            def show_tooltip():
-                if closest_item and closest_metadata:
-                    var_label, _ = get_variable_info(closest_metadata['variable'])
-                    display_name = var_label or closest_metadata['variable']
-                    tooltip_text = f"Variable: {display_name}\nTreatment: {closest_metadata['treatment_name']}"
-                    if tooltip_text != self.last_tooltip_text:
-                        logger.info(f"Showing tooltip on click: {tooltip_text}")
-                        QToolTip.showText(
-                            self.plot_view.mapToGlobal(QPoint(int(pos.x()), int(pos.y()))),
-                            tooltip_text,
-                            self.plot_view,
-                            QRect(),
-                            5000  # Show for 5 seconds for clicks
-                        )
-                        self.last_tooltip_text = tooltip_text
-                else:
-                    if self.last_tooltip_text:
-                        logger.debug("Hiding tooltip")
-                        QToolTip.hideText()
-                        self.last_tooltip_text = None
-
-            # Debounce tooltip display
-            if self.tooltip_timer.isActive():
-                self.tooltip_timer.stop()
-            self.tooltip_timer.timeout.connect(show_tooltip)
-            self.tooltip_timer.start()
-
-        except Exception as e:
-            logger.error(f"Error in mouse click handling: {e}", exc_info=True)
-
     def batch_date_convert(self, df):
         try:
             if "YEAR" in df.columns and "DOY" in df.columns:
@@ -336,11 +176,8 @@ class PlotWidget(QWidget):
             logger.warning(f"Error in batch date conversion: {e}")
             return df
 
-    @function_timer("visualization")
     def plot_time_series(self, selected_folder, selected_out_files, selected_experiment, 
                         selected_treatments, x_var, y_vars, treatment_names=None):
-        timer_id = self.perf_monitor.start_timer("ui", "plot_rendering")
-        
         try:
             plot_config = (selected_folder, tuple(selected_out_files), selected_experiment,
                         tuple(selected_treatments), x_var, tuple(y_vars))
@@ -350,8 +187,7 @@ class PlotWidget(QWidget):
                 obs_data = self.data_cache.get('obs_data')
                 if sim_data is not None:
                     self.plot_cached_data(sim_data, obs_data, x_var, y_vars, selected_treatments, treatment_names)
-                    duration = self.perf_monitor.stop_timer(timer_id, "Used cached data")
-                    return duration
+                    return
 
             self.plot_view.clear()
             self.plot_items_metadata.clear()
@@ -553,7 +389,7 @@ class PlotWidget(QWidget):
             }
             
             line_styles = [Qt.PenStyle.SolidLine, Qt.PenStyle.DashLine, Qt.PenStyle.DotLine, Qt.PenStyle.DashDotLine]
-            pen_width = 4
+            pen_width = 2
             var_style_map = {}
             for var_idx, var in enumerate(y_vars):
                 var_style_map[var] = line_styles[var_idx % len(line_styles)]
@@ -774,16 +610,11 @@ class PlotWidget(QWidget):
             if obs_data is not None and not obs_data.empty:
                 self.calculate_metrics(sim_data, obs_data, y_vars, selected_treatments, treatment_names)
                 
-            duration = self.perf_monitor.stop_timer(timer_id, f"Plotted {len(sim_data)} points")
-            return duration
-            
         except Exception as e:
-            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
+            logger.error(f"Error in plot_time_series: {str(e)}", exc_info=True)
             raise
 
-    @function_timer("visualization")
     def plot_cached_data(self, sim_data, obs_data, x_var, y_vars, selected_treatments, treatment_names):
-        timer_id = self.perf_monitor.start_timer("plotting", "cached_data")
         try:
             self.plot_view.clear()
             self.plot_items_metadata.clear()
@@ -791,7 +622,6 @@ class PlotWidget(QWidget):
             logger.debug("Cleared plot view and metadata for cached data")
             
             if self.scaling_factors:
-                scaling_timer = self.perf_monitor.start_timer("data_processing", "apply_scaling")
                 sim_scaled = improved_smart_scale(sim_data, y_vars, scaling_factors=self.scaling_factors)
                 for var in sim_scaled:
                     sim_data[var] = sim_scaled[var]
@@ -800,43 +630,35 @@ class PlotWidget(QWidget):
                     obs_scaled = improved_smart_scale(obs_data, y_vars, scaling_factors=self.scaling_factors)
                     for var in obs_scaled:
                         obs_data[var] = obs_scaled[var]
-                self.perf_monitor.stop_timer(scaling_timer)
             
             line_styles = [Qt.PenStyle.SolidLine, Qt.PenStyle.DashLine, Qt.PenStyle.DotLine, Qt.PenStyle.DashDotLine]
             var_style_map = {}
             for var_idx, var in enumerate(y_vars):
                 var_style_map[var] = line_styles[var_idx % len(line_styles)]
                 
-            pen_width = 4
+            pen_width = 2
             
             for dataset in [{'data': sim_data, 'source': 'sim'}, {'data': obs_data, 'source': 'obs'}]:
                 if dataset['data'] is not None and not dataset['data'].empty:
-                    plot_timer = self.perf_monitor.start_timer("plotting", f"plot_{dataset['source']}_data")
                     self.plot_dataset(
                         dataset['data'], dataset['source'], x_var, y_vars,
                         selected_treatments, treatment_names, var_style_map, pen_width
                     )
-                    self.perf_monitor.stop_timer(plot_timer)
             
             self.plot_view.enableAutoRange(True)
             self.plot_view.updateGeometry()
             logger.info(f"Finished plotting cached data, {len(self.plot_items_metadata)} items in metadata")
             
-            self.perf_monitor.stop_timer(timer_id)
         except Exception as e:
-            self.perf_monitor.stop_timer(timer_id, f"Error: {str(e)}")
+            logger.error(f"Error in plot_cached_data: {str(e)}", exc_info=True)
             raise
 
-    @function_timer("visualization")
     def update_plot_for_resize(self):
         if hasattr(self, 'plot_view'):
-            timer_id = self.perf_monitor.start_timer("ui", "plot_resize")
             self.plot_view.updateGeometry()
             if self.sim_data is not None:
                 self.plot_view.autoRange()
-            self.perf_monitor.stop_timer(timer_id)
 
-    @function_timer("data_processing")  
     def calculate_metrics(self, sim_data, obs_data, y_vars, selected_treatments, treatment_names=None):
         if obs_data is None or obs_data.empty:
             logger.warning("No observed data available for metrics calculation")
@@ -947,7 +769,6 @@ class PlotWidget(QWidget):
         else:
             logger.warning("No metrics were calculated, not emitting signal")
 
-    @function_timer("visualization")
     def batch_render_dataset(self, data, var, x_var, color, style, symbol=None):
         timer_id = self.perf_monitor.start_timer("rendering", f"batch_render_{var}")
         try:
@@ -990,7 +811,7 @@ class PlotWidget(QWidget):
             logger.error(f"Error in d_stat calculation: {e}", exc_info=True)
             return 0.0
 
-    @function_timer("visualization")
+    
     def plot_dataset(self, data, source_type, x_var, y_vars, selected_treatments, treatment_names, var_style_map, pen_width):
         logger.debug(f"Plotting {source_type} data with shape {data.shape}")
         data = data[data['TRT'].isin(selected_treatments)].copy()
@@ -1253,3 +1074,5 @@ class PlotWidget(QWidget):
                 
         self.data_cache[cache_key] = processed
         return processed
+
+    

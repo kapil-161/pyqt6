@@ -5,50 +5,65 @@ block_cipher = None
 
 # Define required Qt plugins
 qt_plugins = [
-    ('platforms', ['platforms/libqcocoa.dylib'])
+    ('platforms', ['platforms/qwindows.dll'])
 ]
 
 # All hidden imports for our app
 hidden_imports = [
     # PyQt6 and UI dependencies
-    'PyQt6', 'PyQt6.QtCore', 'PyQt6.QtWidgets', 'PyQt6.QtGui', 
-    'pyqtgraph',
+    'PyQt6', 'PyQt6.QtCore', 'PyQt6.QtWidgets', 'PyQt6.QtGui',
+    'PyQt6.QtOpenGL', 'PyQt6.QtOpenGLWidgets',
+    'pyqtgraph', 'pyqtgraph.graphicsItems',
     
     # Data processing dependencies
-    'pandas.core.frame', 'pandas.core.series', 'numpy.core',
+    'pandas', 'pandas.core.frame', 'pandas.core.series', 
+    'numpy', 'numpy.core',
+    'python_dateutil', 'dateutil',
+    
+    # ctypes dependencies
+    'ctypes', 'ctypes.util',
     
     # pkg_resources dependencies
     'jaraco.text', 'plistlib', 'appdirs', 
     'packaging', 'packaging.version', 'packaging.specifiers', 
     'packaging.requirements', 'packaging.markers',
-    'pkg_resources.extern.packaging', 'setuptools.extern.packaging',
     'importlib_metadata', 'zipp', 'attrs', 'more_itertools',
     
     # OpenGL dependencies
-    'OpenGL', 'OpenGL.GL', 'OpenGL.GLU', 'OpenGL.GLUT', 'OpenGL.platform'
+    'OpenGL', 'OpenGL.GL', 'OpenGL.GLU', 'OpenGL.GLUT', 'OpenGL.platform',
+    
+    # Other dependencies
+    'threadpoolctl'
 ]
 
 # Minimal exclusion list - only large/unnecessary packages
 exclusions = [
+    'PyQt5', 'PyQt5.QtCore', 'PyQt5.QtWidgets', 'PyQt5.QtGui', 'PyQt5.sip',
     'matplotlib', 'scipy', 'tkinter', '_tkinter', 'Tkinter', 'wx',
     'IPython', 'notebook', 'sphinx', 'docutils',
     'PIL', 'sqlalchemy', 'tornado', 'jinja2', 'flask',
     'PyQt6.QtWebEngine', 'PyQt6.QtMultimedia', 'PyQt6.QtNetwork',
-    'PyQt6.QtQml', 'PyQt6.QtQuick', 
-    'plotly', 'dash'
+    'PyQt6.QtQml', 'PyQt6.QtQuick', 'PyQt6.QtSvg', 'PyQt6.QtTest',
+    'PyQt6.QtPdf',
+    'plotly', 'plotly.graph_objects', 'plotly.express', 'plotly.io',
+    'dash',
+    'pygame', 'psutil', 'openpyxl', 'charset_normalizer',
+    'jupyter', 'sqlite3',
+    'concurrent.futures', 'importlib.util',
+
 ]
 
 a = Analysis(
-    ['main.py'],  # Entry point to your application
-    pathex=[],
-    binaries=[],
-    datas=[('resources', 'resources')],  # Include resources directory
+    ['main.py'],
+    pathex=['C:\\Users\\kbhattarai1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pyqtgraph'] if 'C:\\Users\\kbhattarai1\\AppData\\Local\\Programs\\Python\\Python313\\Lib\\site-packages\\pyqtgraph' else [],
+    binaries=[('C:\\Users\\kbhattarai1\\AppData\\Local\\Programs\\Python\\Python313\\DLLs\\libffi-8.dll', '.')],
+    datas=[('resources', 'resources')],
     hiddenimports=hidden_imports,
-    hookspath=['hooks'],  # Use our hooks directory
+    hookspath=['hooks'],
     hooksconfig={'pyqt6': {'plugins': qt_plugins}},
     runtime_hooks=[
-        f'hooks/pkg_resources_hook.py',  # pkg_resources patch
-        f'hooks/opengl_hook.py'  # OpenGL patch
+        f'hooks/pkg_resources_hook.py',
+        f'hooks/opengl_hook.py'
     ],
     excludes=exclusions,
     win_no_prefer_redirects=False,
@@ -57,11 +72,14 @@ a = Analysis(
     noarchive=False,
 )
 
-# Filter unnecessary Qt plugins
+# Filter unnecessary Qt plugins and large DLLs
 def filter_binaries(binaries):
     excluded_patterns = [
-        'QtWebEngine', 'QtDesigner', 'QtQuick', 'QtQml', 'QtHelp',
-        'QtMultimedia'
+        'Qt6WebEngine', 'Qt6Designer', 'Qt6Quick', 'Qt6Qml', 'Qt6Help',
+        'Qt6Multimedia', 'Qt6Svg', 'Qt6Test', 'Qt6Pdf', 'Qt5',
+        'opengl32sw.dll', 'd3dcompiler_47.dll',
+        'libcrypto', 'libssl', 'sqlite3.dll', 'pythoncom', 'pywintypes',
+        'MSVCP140', 'VCRUNTIME140', 'MSVCR100'
     ]
     
     return [(name, path, typ) for name, path, typ in binaries 
@@ -96,13 +114,10 @@ exe = EXE(
     name='dssat_viewer',
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
-    upx=False,
+    strip=False,  # Disable strip to avoid FileNotFoundError
+    upx=True,
+    upx_exclude=['Qt6Core.dll', 'Qt6Gui.dll', 'Qt6Widgets.dll', 'python313.dll'],
     runtime_tmpdir=None,
-    console=True,  # Set to True for debugging, False for production
+    console=False,
     disable_windowed_traceback=False,
-    argv_emulation=True,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
 )
