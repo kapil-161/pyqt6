@@ -1,6 +1,7 @@
 import sys
 import os
 import pandas as pd
+from io import StringIO
 # Add project root to Python path
 project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, project_dir)
@@ -170,8 +171,17 @@ def prepare_out_files(selected_folder: str) -> List[str]:
         logger.error(f"Error preparing OUT files: {str(e)}")
         return []
 
+import pandas as pd
+from io import StringIO
+from typing import List, Optional
+import os
+import logging
+import glob
+
 def read_file(file_path: str) -> Optional[DataFrame]:
-    """Read and process DSSAT output file with optimized performance."""
+    """Read and process DSSAT output file with optimized performance.
+    Handles both standard output files and FORAGE.OUT with special processing.
+    """
     try:
         if os.path.basename(file_path) == file_path:  # File has no directory part
             # Try to find the file in crop directories
@@ -206,6 +216,102 @@ def read_file(file_path: str) -> Optional[DataFrame]:
             logger.error(f"Could not read file with any encoding: {file_path}")
             return None
 
+        # Check if this is FORAGE.OUT file
+        is_forage_file = os.path.basename(file_path).upper() == "FORAGE.OUT"
+        
+        # Different processing paths for different file types
+        if is_forage_file:
+            # Special processing for FORAGE.OUT
+            return process_forage_file(lines)
+        else:
+            # Standard processing for other DSSAT output files
+            return process_standard_file(lines)
+
+    except Exception as e:
+        logger.error(f"Error processing file {file_path}: {str(e)}")
+        return None
+
+def process_forage_file(lines: List[str]) -> Optional[DataFrame]:
+    """Process FORAGE.OUT file using pandas with special handling for headers."""
+    try:
+        # Find header line
+        header_line_index = None
+        for idx, line in enumerate(lines):
+            if line.strip().startswith('@'):
+                header_line_index = idx
+                break
+        
+        if header_line_index is None:
+            logger.error("No header line found in FORAGE.OUT")
+            return None
+        
+        # Fix header: manually handle 'RUN FILEX' if present
+        raw_columns = lines[header_line_index].strip().lstrip('@').split()
+        if len(raw_columns) >= 2 and raw_columns[0] == "RUN" and raw_columns[1] == "FILEX":
+            columns = ["RUN_FILEX"] + raw_columns[2:]
+        else:
+            columns = raw_columns
+        
+        # Extract data lines (skip comments)
+        data_lines = [line for line in lines[header_line_index + 1:] 
+                      if line.strip() and not line.startswith('*')]
+        data_text = '\n'.join(data_lines)
+        data_io = StringIO(data_text)
+        
+        # Read data with pandas
+        df = pd.read_csv(data_io, delim_whitespace=True, names=columns)
+        
+        # Standardize treatment column name if needed
+        treatment_cols = ["TRNO", "TR", "TRT", "TN"]
+        for col in df.columns:
+            if col in treatment_cols and col != "TRNO":
+                df = df.rename(columns={col: "TRNO"})
+                break
+        
+        # If no treatment column was found, check if first column might be treatments
+        if not any(col in df.columns for col in treatment_cols):
+            first_col = df.columns[0]
+            # Check if first column contains numeric values that could be treatment numbers
+            if pd.to_numeric(df[first_col], errors='coerce').notna().all():
+                df = df.rename(columns={first_col: "TRNO"})
+                logger.info(f"Using column {first_col} as TRNO")
+        
+        # Convert TRNO to string if it exists
+        if "TRNO" in df.columns:
+            df["TRNO"] = df["TRNO"].astype(str)
+        else:
+            # Create default TRNO if none exists
+            df["TRNO"] = "1"
+            logger.info("Created default TRNO column with value 1")
+        
+        # Convert other columns to numeric where possible
+        for col in df.columns:
+            if col != "TRNO":  # Keep TRNO as string
+                df[col] = pd.to_numeric(df[col], errors='ignore')
+        
+        # Drop empty columns
+        df = df.loc[:, df.notna().any()]
+        
+        # Create DATE column if possible
+        if "YEAR" in df.columns and "DOY" in df.columns:
+            df["DATE"] = pd.to_datetime(
+                df["YEAR"].astype(str) + 
+                df["DOY"].astype(str).str.zfill(3),
+                format="%Y%j",
+                errors='coerce'
+            )
+            df["DATE"] = df["DATE"].dt.strftime("%Y-%m-%d")
+        
+        return df
+        
+    except Exception as e:
+        logger.error(f"Error processing forage file: {str(e)}")
+        logger.exception("Detailed error:")
+        return None
+
+def process_standard_file(lines: List[str]) -> Optional[DataFrame]:
+    """Process standard DSSAT output files."""
+    try:
         # Process data more efficiently
         data_frames = []
         treatment_indices = [i for i, line in enumerate(lines) if line.strip().upper().startswith("TREATMENT")]
@@ -241,11 +347,10 @@ def read_file(file_path: str) -> Optional[DataFrame]:
             return combined_data
 
         return None
-
+    
     except Exception as e:
-        logger.error(f"Error processing file {file_path}: {str(e)}")
+        logger.error(f"Error processing standard file: {str(e)}")
         return None
-
 
 def process_treatment_block(lines: List[str]) -> Optional[DataFrame]:
     """Helper function to process a treatment block of data."""
